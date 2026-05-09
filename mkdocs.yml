@@ -1,0 +1,156 @@
+site_name: api-test
+# Trailing slash matters: it's used as a prefix in OG/Twitter card URLs
+# and in JSON-LD, where doubling-up "//" breaks tools that don't normalize.
+site_url: https://api-test.plexara.io/
+site_description: >-
+  api-test is a controllable HTTP REST fixture, built specifically as an
+  upstream for testing API gateways. Endpoint groups for identity,
+  deterministic data, controlled failures, pagination styles, and SSRF
+  probes; multiple inbound auth modes matching what the Plexara API
+  gateway sends; and a Postgres-backed audit log of every request.
+  Open source by Plexara, Apache 2.0.
+site_author: Plexara
+repo_url: https://github.com/plexara/api-test
+repo_name: plexara/api-test
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2026 Plexara
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: images/logo.svg
+  favicon: images/logo.svg
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+    - toc.follow
+    - announce.dismiss
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/overview.md
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Register with Plexara: getting-started/register-with-plexara.md
+  - Configuration:
+      - YAML Reference: configuration/reference.md
+      - Environment Variables: configuration/environment.md
+      - Authentication: configuration/auth.md
+      - Database & Migrations: configuration/database.md
+  - Endpoints:
+      - Overview: endpoints/overview.md
+      - Identity: endpoints/identity.md
+      - Data: endpoints/data.md
+      - Failure Modes: endpoints/failure.md
+      - Echo: endpoints/echo.md
+  - Operations:
+      - Audit Log: operations/audit.md
+      - Portal: operations/portal.md
+      - Deployment: operations/deployment.md
+      - Testing a Gateway: operations/gateway-testing.md
+  - Reference:
+      - HTTP API: reference/http-api.md
+      - Architecture: reference/architecture.md
+      - Releases: reference/releases.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/plexara/api-test
+      name: api-test on GitHub
+    - icon: fontawesome/solid/globe
+      link: https://plexara.io
+      name: Plexara
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/shots.js
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: plexara
+      repo: api-test
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  # Note: mkdocs-material's `social` plugin (per-page auto-generated
+  # 1200x630 cards) was previously wired in here. We removed it in
+  # favor of a curated, hand-designed OG banner at images/og-card.png
+  # used site-wide via docs/overrides/main.html. The Tailwind / Stripe /
+  # Vercel pattern: one strong brand banner beats N generic
+  # auto-renders. To opt back into per-page cards, restore the plugin
+  # entry and re-add the imaging system deps + 'mkdocs-material[imaging]'
+  # to .github/workflows/docs.yml.
