@@ -1,0 +1,48 @@
+# api-test
+
+> A controllable HTTP REST fixture, built specifically as an upstream for testing API gateways end-to-end. Endpoint groups for identity, deterministic data, controlled failures, pagination styles, large/streamed responses, and SSRF probes; multiple inbound auth modes (file API keys, Postgres-backed bcrypt keys, static bearer, OIDC) matching what the Plexara API gateway sends; and a Postgres-backed audit log of every request. Open source by Plexara under Apache 2.0.
+
+The server itself is small and predictable on purpose; the value is the surface it gives a gateway operator to assert on. Same input always produces the same output. Failures happen exactly when asked. Every request lands in an audit log the embedded React portal can browse, filter, and chart.
+
+## Getting started
+
+- [Overview](https://api-test.plexara.io/getting-started/overview/): What api-test is, who should use it, and why a separate test fixture matters.
+- [Installation](https://api-test.plexara.io/getting-started/installation/): Binary download, container image (GHCR), `go install`, building from source.
+- [Quickstart](https://api-test.plexara.io/getting-started/quickstart/): `make dev` runs the binary in anonymous mode today; the full Postgres + Keycloak + portal stack lands with M3.
+- [Register with Plexara](https://api-test.plexara.io/getting-started/register-with-plexara/): Wiring api-test in as a connection in a running Plexara API gateway, with one example per supported auth mode.
+
+## Configuration
+
+- [YAML reference](https://api-test.plexara.io/configuration/reference/): Every config key with default value and environment-variable override.
+- [Environment variables](https://api-test.plexara.io/configuration/environment/): `APITEST_*` variables and how they map onto the YAML.
+- [Authentication](https://api-test.plexara.io/configuration/auth/): Inbound auth modes (file API keys with header or query placement, Postgres-backed bcrypt keys, static bearer tokens, OIDC JWT validation) matching what the Plexara API gateway sends.
+- [Database and migrations](https://api-test.plexara.io/configuration/database/): Postgres connection settings; migrations run on boot via golang-migrate.
+
+## Endpoints
+
+api-test ships endpoint groups designed to exercise specific API-gateway behaviors. Each is a thin, deterministic shim.
+
+- [Endpoints overview](https://api-test.plexara.io/endpoints/overview/): Catalog and the determinism contract.
+- [Identity](https://api-test.plexara.io/endpoints/identity/): `/v1/whoami`, `/v1/headers`. Verify the gateway forwards identity and headers (with redaction).
+- [Data](https://api-test.plexara.io/endpoints/data/): `/v1/fixed/{key}`, `/v1/sized?bytes=N`, `/v1/lorem?words=N&seed=S`. Deterministic outputs for testing dedup, response-size handling, and caching.
+- [Failure modes](https://api-test.plexara.io/endpoints/failure/): `/v1/status/{code}`, `/v1/slow?ms=N`, `/v1/flaky?fail_rate=&seed=&call_id=`. Controlled error categories, latency injection, seeded flake rates.
+- [Echo](https://api-test.plexara.io/endpoints/echo/): `ANY /v1/echo`. Generic catch-all that returns the request verbatim, with auth headers redacted.
+
+## Operations
+
+- [Audit log](https://api-test.plexara.io/operations/audit/): Postgres schema, retention, redaction, and the JSON shape returned by the portal API.
+- [Deployment](https://api-test.plexara.io/operations/deployment/): Docker, Kubernetes, distroless image, healthcheck, graceful shutdown.
+- [Testing a gateway](https://api-test.plexara.io/operations/gateway-testing/): Patterns for asserting on the Plexara API gateway's auth-forwarding, redaction, pagination detection, error surfacing, and timeout enforcement using api-test as the upstream.
+
+## Reference
+
+- [HTTP API](https://api-test.plexara.io/reference/http-api/): Health, well-known metadata, and the portal/admin API surface.
+- [Architecture](https://api-test.plexara.io/reference/architecture/): Component diagram, request flow, audit pipeline, embed model.
+- [Releases](https://api-test.plexara.io/reference/releases/): Version policy, container image tags, migration notes.
+
+## Optional
+
+- [Source on GitHub](https://github.com/plexara/api-test): Apache 2.0; issues and PRs welcome.
+- [Container image](https://github.com/plexara/api-test/pkgs/container/api-test): GHCR multi-arch images, signed via cosign on tag.
+- [Sister project: mcp-test](https://mcp-test.plexara.io/): Same role as api-test, but for MCP gateways instead of HTTP API gateways.
+- [Plexara](https://plexara.io): The commercial unified MCP+API gateway. api-test is what we use to verify Plexara's API-gateway behavior end-to-end; we ship it as OSS so anyone building API gateways can use the same fixture.
