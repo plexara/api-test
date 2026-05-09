@@ -123,19 +123,13 @@ coverage:
 	@$(GO) tool cover -func=coverage.out | tail -1
 
 ## coverage-gate: Fail if coverage of testable packages is below COVERAGE_MIN (default 80)
-##                 Excludes Postgres-dependent packages (apikeys, audit/postgres,
-##                 database, database/migrate) — those are covered by the
-##                 integration test suite (go test -tags integration) which
-##                 doesn't contribute to the unit-test coverage profile.
-##                 Also excludes cmd/api-test (binary entry; tested manually).
-COVERAGE_EXCLUDE := cmd/api-test|pkg/apikeys|pkg/audit/postgres|pkg/database
+##                 Delegates to scripts/coverage-gate.sh so CI and local
+##                 use identical logic. The script excludes Postgres-
+##                 dependent packages (apikeys, audit/postgres,
+##                 database, database/migrate) and cmd/api-test from the
+##                 gate; those are covered by the integration suite.
 coverage-gate: coverage
-	@total=$$( \
-		$(GO) tool cover -func=coverage.out \
-		| grep -Ev "$(COVERAGE_EXCLUDE)" \
-		| awk '$$3 ~ /%$$/ {gsub(/%/,"",$$3); sum+=$$3; n++} END { if (n==0) { print 0 } else { printf "%.1f", sum/n } }' \
-	); \
-	awk -v total=$$total -v min=$(COVERAGE_MIN) 'BEGIN { if (total+0 < min+0) { printf "coverage (testable subset) %s%% < %s%%\n", total, min; exit 1 } else { printf "coverage (testable subset) %s%% >= %s%%\n", total, min } }'
+	@./scripts/coverage-gate.sh coverage.out $(COVERAGE_MIN)
 
 ## tools-install: Install lint/security tools at the pinned versions into $(TOOLS_DIR).
 TOOLS_STAMP := $(TOOLS_DIR)/.installed-$(GOLANGCI_LINT_VERSION)-$(GOSEC_VERSION)

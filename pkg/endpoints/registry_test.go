@@ -15,7 +15,6 @@ func (g *stubGroup) Name() string           { return g.name }
 func (g *stubGroup) Routes() []EndpointMeta { return g.routes }
 func (g *stubGroup) Mount(mux *http.ServeMux, mw Middleware) {
 	for _, r := range g.routes {
-		r := r
 		mux.Handle(r.Method+" "+r.Path, mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte(r.Name))
 		})))
