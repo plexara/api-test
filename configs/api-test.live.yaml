@@ -14,6 +14,7 @@ oidc:
   enabled: true
   issuer: "http://localhost:8081/realms/api-test"
   audience: "api-test"
+  client_id: "api-test-portal"
   allowed_clients: ["api-test-portal", "plexara-cc", "plexara-ac"]
   clock_skew_seconds: 30
   jwks_cache_ttl: 1h

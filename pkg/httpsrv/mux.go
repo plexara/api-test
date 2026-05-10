@@ -2,16 +2,31 @@ package httpsrv
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 
+	"github.com/plexara/api-test/pkg/config"
 	"github.com/plexara/api-test/pkg/endpoints"
 )
 
-// BuildMux assembles the M1 HTTP mux: /healthz, /readyz, the endpoint
-// groups under /v1, and a friendly JSON 404 root. Later milestones will
-// extend this with /.well-known/*, the portal SPA at /portal/, the
-// portal/admin APIs at /api/v1/portal/, and the OpenAPI doc.
-func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.Middleware) http.Handler {
+// PortalDeps bundles everything needed to mount the portal under /portal/
+// and /portal/api/*. Pass nil to BuildMux to disable the portal entirely.
+type PortalDeps struct {
+	Cfg         *config.Config
+	SPA         fs.FS // when nil, /portal/ serves a JSON stub
+	BrowserAuth *BrowserAuth
+	PortalAuth  *PortalAuth
+	PortalAPI   *PortalAPI
+}
+
+// BuildMux assembles the HTTP mux:
+//   - /healthz, /readyz
+//   - /v1/* endpoint groups (with the supplied middleware)
+//   - /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server
+//   - /portal/, /portal/api/*, /portal/auth/{login,callback,logout} when portal != nil
+//   - / — root handler returning a JSON banner (or a redirect to the portal
+//     when the request looks like a browser GET)
+func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.Middleware, portal *PortalDeps) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", HealthzHandler())
@@ -22,19 +37,53 @@ func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.M
 	}
 	registry.Mount(mux, mw)
 
-	mux.HandleFunc("GET /", rootHandler(registry))
+	if portal != nil {
+		mux.HandleFunc("GET /.well-known/oauth-protected-resource", ProtectedResourceMetadata(portal.Cfg))
+		mux.HandleFunc("GET /.well-known/oauth-authorization-server", AuthorizationServerStub(portal.Cfg))
 
-	return CORS(mux)
+		if portal.BrowserAuth != nil {
+			portal.BrowserAuth.Mount(mux)
+		}
+		if portal.PortalAPI != nil && portal.PortalAuth != nil {
+			portal.PortalAPI.Mount(mux, portal.PortalAuth.Middleware)
+		}
+		mux.Handle("GET /portal/", http.StripPrefix("/portal", spaOrStub(portal.SPA)))
+	}
+
+	mux.HandleFunc("GET /", rootHandler(registry, portal != nil))
+
+	var handler http.Handler = mux
+	if portal != nil {
+		// Bounce browser GETs at "/" to /portal/ so a curl returns the JSON
+		// banner but a browser visit lands on the SPA.
+		handler = BrowserRedirect("/portal/", handler)
+	}
+	return CORS(handler)
+}
+
+// spaOrStub serves the SPA when spaFS is non-nil; otherwise emits a small
+// JSON stub explaining how to build the UI. Used by `make dev` runs that
+// haven't built the SPA yet so the binary still starts cleanly.
+func spaOrStub(spaFS fs.FS) http.Handler {
+	if spaFS != nil {
+		return SPAHandler(spaFS)
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":  "ui not built",
+			"detail": "internal/ui/dist is empty; run `make ui` and rebuild the binary",
+		})
+	})
 }
 
 // rootHandler returns a small JSON banner at "/" so a curl to the bare host
 // gets a useful response (a list of mounted endpoint groups + version
-// pointer to /healthz). M3 will replace this with a 302 to /portal/ when
-// the SPA is enabled.
-func rootHandler(registry *endpoints.Registry) http.HandlerFunc {
+// pointer to /healthz). When the portal is enabled, the banner advertises
+// the portal URL and BrowserRedirect handles browser GETs upstream.
+func rootHandler(registry *endpoints.Registry, portalEnabled bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Only handle the literal root; everything else here means "no
-		// matching route" and should be a JSON 404.
 		if r.URL.Path != "/" {
 			writeJSONError(w, http.StatusNotFound, "no such endpoint")
 			return
@@ -43,16 +92,20 @@ func rootHandler(registry *endpoints.Registry) http.HandlerFunc {
 		for _, g := range registry.Groups() {
 			groups = append(groups, g.Name())
 		}
+		links := map[string]string{
+			"healthz": "/healthz",
+			"readyz":  "/readyz",
+		}
+		if portalEnabled {
+			links["portal"] = "/portal/"
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":            "api-test",
 			"endpoint_groups": groups,
 			"endpoints":       len(registry.All()),
-			"links": map[string]string{
-				"healthz": "/healthz",
-				"readyz":  "/readyz",
-			},
+			"links":           links,
 		})
 	}
 }

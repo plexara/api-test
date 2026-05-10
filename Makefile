@@ -55,10 +55,10 @@ CODEQL_RESULT := $(BUILD_DIR)/codeql-results.sarif
 
 .PHONY: all build build-all test test-short bench fmt fmt-check vet tidy \
         mod-tidy-check mod-verify clean help dev-secrets \
-        ui ui-dev ui-clean embed-clean \
+        ui ui-dev ui-clean ui-verify embed-clean \
         lint security gosec govulncheck semgrep \
         coverage coverage-gate coverage-report \
-        integration codeql require-docker require-codeql require-semgrep require-jq \
+        integration codeql require-docker require-codeql require-semgrep require-jq require-node \
         verify tools-check tools-install \
         dev dev-anon dev-up dev-wait dev-ui-if-needed dev-down dev-logs \
         docker docs docs-serve run version
@@ -78,6 +78,39 @@ build:
 build-all:
 	@echo "Building all packages..."
 	$(GOBUILD) -v ./...
+
+## ui: Build the SPA into internal/ui/dist for embedding into the binary.
+##     Uses pnpm with --frozen-lockfile so reproducible.
+ui: require-node
+	@echo "Building UI..."
+	cd $(UI_DIR) && pnpm install --frozen-lockfile && pnpm build
+	@rm -rf $(UI_EMBED_DIR)
+	@cp -R $(UI_DIR)/dist $(UI_EMBED_DIR)
+	@echo "UI built and copied to $(UI_EMBED_DIR)."
+
+## ui-verify: TypeScript + Vite build of the SPA without copying to the
+##            embed dir. Mirrored from CI's frontend job — catches type
+##            errors and broken imports without rebuilding the Go binary.
+ui-verify: require-node
+	@echo "Verifying UI (typecheck + build)..."
+	cd $(UI_DIR) && pnpm install --frozen-lockfile && pnpm build
+
+## ui-dev: Run Vite dev server (proxies /api to localhost:8080).
+ui-dev:
+	cd $(UI_DIR) && pnpm dev
+
+## ui-clean: Remove UI build artifacts (dist + node_modules).
+ui-clean:
+	@rm -rf $(UI_DIR)/dist $(UI_DIR)/node_modules
+
+## embed-clean: Reset internal/ui/dist to .gitkeep only (matches a clean
+##              CI checkout; useful before `make ui` to confirm the build
+##              produces a complete dist tree from scratch).
+embed-clean:
+	@echo "Cleaning UI embed directory..."
+	@rm -rf $(UI_EMBED_DIR)
+	@mkdir -p $(UI_EMBED_DIR)
+	@touch $(UI_EMBED_DIR)/.gitkeep
 
 ## test: Run unit tests with race detector
 test:
@@ -267,6 +300,14 @@ require-jq:
 		exit 1; \
 	fi
 
+require-node:
+	@if ! command -v pnpm >/dev/null 2>&1; then \
+		echo "FAIL: pnpm not on PATH (UI build needs it)." >&2; \
+		echo "  brew install pnpm           # macOS" >&2; \
+		echo "  npm install -g pnpm         # any node install" >&2; \
+		exit 1; \
+	fi
+
 ## tools-install: Install lint/security tools at the pinned versions into $(TOOLS_DIR).
 TOOLS_STAMP := $(TOOLS_DIR)/.installed-$(GOLANGCI_LINT_VERSION)-$(GOSEC_VERSION)
 tools-install: $(TOOLS_STAMP)
@@ -302,7 +343,7 @@ tools-check: tools-install
 ##           - docker (running)  for `make integration`
 ##           - codeql            for `make codeql`
 ##           - semgrep           for `make semgrep`
-verify: tools-check fmt-check mod-tidy-check mod-verify build-all lint security coverage-gate integration codeql
+verify: tools-check fmt-check mod-tidy-check mod-verify build-all lint security coverage-gate integration codeql ui-verify
 	@echo ""
 	@echo "=== verify: all checks passed (CI-equivalent set) ==="
 	@# Pre-commit gate sentinel: record the current diff hash so the
@@ -312,11 +353,31 @@ verify: tools-check fmt-check mod-tidy-check mod-verify build-all lint security 
 	@{ git diff --cached HEAD 2>/dev/null; git diff 2>/dev/null; } \
 		| shasum -a 256 | cut -c1-16 > .claude/.last-verify-passed
 
-## dev-anon: Run anonymous-mode dev binary; no DB, no auth (M1 happy path).
-dev-anon:
-	$(GO) run $(LDFLAGS) $(CMD_DIR) --config configs/api-test.dev.yaml
+## dev: One-command full local stack — postgres + keycloak in docker,
+##      SPA built if missing, binary in foreground against the live config.
+##      Generates .env.dev with random secrets on first run (gitignored;
+##      subsequent runs reuse so portal sessions persist).
+dev: dev-secrets dev-up dev-wait dev-ui-if-needed
+	@. ./.env.dev && \
+	echo "" && \
+	echo "Starting api-test (config: configs/api-test.live.yaml)..." && \
+	echo "  Portal:    http://localhost:8080/portal/   (sign in with dev/dev or paste an API key)" && \
+	echo "  /v1/*:     http://localhost:8080/v1/...   (X-API-Key: \$$APITEST_DEV_KEY)" && \
+	echo "  Keycloak:  http://localhost:8081/         (admin/admin)" && \
+	echo "  API key:   $$APITEST_DEV_KEY" && \
+	echo "  Bearer:    $$APITEST_DEV_BEARER" && \
+	echo "" && \
+	$(GO) run $(LDFLAGS) $(CMD_DIR) --config configs/api-test.live.yaml
+
+## dev-anon: Run anonymous-mode dev binary against postgres only — no
+##           Keycloak, no auth required, no portal browser login.
+##           Fastest iteration for endpoint-group / audit work.
+dev-anon: dev-secrets
+	@. ./.env.dev && docker compose -f docker-compose.dev.yml up -d postgres
+	@. ./.env.dev && $(GO) run $(LDFLAGS) $(CMD_DIR) --config configs/api-test.dev.yaml
 
 ## dev-secrets: Generate .env.dev with random cookie secret + dev API key on first run.
+##              Re-run-safe; only writes if .env.dev is missing.
 dev-secrets:
 	@if [ ! -f .env.dev ]; then \
 		echo "Generating .env.dev with random secrets (gitignored)..."; \
@@ -328,9 +389,39 @@ dev-secrets:
 		chmod 600 .env.dev; \
 	fi
 
-## dev: Full local stack (M3+). For now, points at dev-anon.
-##      M3 will replace with: postgres + keycloak in compose, binary in foreground.
-dev: dev-anon
+## dev-up: Start the dev stack (postgres + keycloak) without the binary.
+##         Depends on dev-secrets because docker compose interpolates the
+##         APITEST_COOKIE_SECRET reference at parse time even when the
+##         api-test service isn't being started.
+dev-up: dev-secrets require-docker
+	@. ./.env.dev && docker compose -f docker-compose.dev.yml up -d postgres keycloak
+
+## dev-wait: Block until postgres and keycloak are reachable.
+##           Sources .env.dev because `docker compose exec` re-parses the
+##           compose file and its APITEST_* references must resolve.
+dev-wait: dev-secrets
+	@echo "Waiting for Postgres..."
+	@. ./.env.dev && until docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U api >/dev/null 2>&1; do sleep 1; done
+	@echo "Waiting for Keycloak realm..."
+	@until curl -fs http://localhost:8081/realms/api-test/.well-known/openid-configuration >/dev/null 2>&1; do sleep 2; done
+	@echo "Stack ready."
+
+## dev-ui-if-needed: Build the SPA if internal/ui/dist/index.html is missing.
+##                   Skipped silently when the embed is already populated.
+dev-ui-if-needed:
+	@if [ ! -f $(UI_EMBED_DIR)/index.html ]; then \
+		$(MAKE) ui; \
+	fi
+
+## dev-down: Stop the dev stack and remove the compose network. Volumes
+##           (postgres data) are kept; add `-v` to the underlying command
+##           to wipe them.
+dev-down: dev-secrets
+	@. ./.env.dev && docker compose -f docker-compose.dev.yml down
+
+## dev-logs: Tail compose logs (postgres + keycloak + binary if running).
+dev-logs: dev-secrets
+	@. ./.env.dev && docker compose -f docker-compose.dev.yml logs -f --tail=100
 
 ## run: Build and run with dev config
 run: build
