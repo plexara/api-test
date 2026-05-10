@@ -1,7 +1,7 @@
 {#
   Home page template. Replaces Material's article surface with a Plexara-
   flavored composition: hero (woven-pattern + hero-glow + LogoMark),
-  feature grid (cards), reasons rail, and a CTA strip.
+  portal-screenshots carousel, feature grid (cards), reasons rail.
 
   Triggered via `template: home.html` in the index.md front matter. We
   still extend `main.html` so the global header, footer, search, and
@@ -9,10 +9,8 @@
   available as `page.content` and rendered below the hero so existing
   prose stays editable in source.
 
-  Note: the portal-screenshots carousel that mcp-test ships in this
-  template is omitted here. The api-test portal lands in M3; once
-  screenshots exist under docs/images/portal/, copy the .plex-shots
-  section back from mcp-test verbatim.
+  Screenshots live under docs/images/portal/<slug>-{light,dark}.png and
+  are produced by `make screenshots` (see scripts/screenshots/README.md).
 #}
 {% extends "main.html" %}
 
@@ -64,6 +62,101 @@
   </div>
 
   <div class="plex-rule-bottom" aria-hidden="true"></div>
+</section>
+
+<section class="plex-shots" aria-label="Portal screenshots">
+  <div class="plex-shots__inner">
+    <div class="plex-shots__head">
+      <span class="plex-section__eyebrow">Portal preview</span>
+      <h2>Inspect every request from the browser</h2>
+      <p class="plex-shots__lede">Click any frame to open it full-size. Use the side rails or the arrow keys to step through.</p>
+    </div>
+
+    <div class="plex-shots__stage">
+      <button class="plex-shots__rail plex-shots__rail--prev" data-shots-prev type="button" aria-label="Previous screenshot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+
+      <div class="plex-shots__viewport">
+      <div class="plex-shots__track" data-shots-track>
+        {% set shots = [
+          ["dashboard",        "Dashboard",       "1-hour totals, success / error counts, error rate, and the most recent calls across every endpoint group."],
+          ["audit",            "Audit log",       "Every request, filterable by method, path, and success / error. Auto-refreshing on a 5-second interval; click a row to inspect the full request and response."],
+          ["audit-detail",     "Inspection panel", "Side-pane detail card with timestamp, duration, request id, identity, remote address, byte counts, and the full headers / query / body trees for both sides of the call."],
+          ["endpoints",        "Endpoints",       "Catalog of every registered route, grouped by behavior — identity, deterministic data, echo, controlled failure modes."],
+          ["endpoints-detail", "Endpoint detail", "Method, path, group, auth requirement, and an inline curl hint per route. Try-It panel arrives with the OpenAPI generator in M4."],
+          ["keys",             "API keys",        "Create or revoke Postgres-backed bcrypt keys. Plaintext is shown once, then never again."],
+          ["config",           "Config",          "Read-only view of the running server config, with secrets masked. Useful for sanity-checking what's actually loaded."],
+          ["about",            "About",           "Build info plus the same well-known metadata an MCP / API client sees: api endpoint, OIDC issuer, audience."]
+        ] %}
+        {% for slug, title, body in shots %}
+        <figure class="plex-shots__slide">
+          <button
+            class="plex-shots__frame"
+            type="button"
+            data-shots-zoom
+            data-zoom-slug="{{ slug }}"
+            data-zoom-title="{{ title }}"
+            data-zoom-body="{{ body }}"
+            data-zoom-light="{{ ('images/portal/' ~ slug ~ '-light.png') | url }}"
+            data-zoom-dark="{{ ('images/portal/' ~ slug ~ '-dark.png') | url }}"
+            aria-label="Open {{ title }} screenshot full size"
+          >
+            <img src="{{ ('images/portal/' ~ slug ~ '-light.png') | url }}" alt="Portal {{ title }} screen, light theme" data-theme="light" loading="lazy" decoding="async" />
+            <img src="{{ ('images/portal/' ~ slug ~ '-dark.png')  | url }}" alt="Portal {{ title }} screen, dark theme"  data-theme="dark"  loading="lazy" decoding="async" />
+            <span class="plex-shots__zoomhint" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 8V3h5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="M21 16v5h-5"/>
+              </svg>
+            </span>
+          </button>
+          <figcaption class="plex-shots__caption">
+            <span class="eyebrow">Portal</span>
+            <h3>{{ title }}</h3>
+            <p>{{ body }}</p>
+          </figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+      </div>
+
+      <button class="plex-shots__rail plex-shots__rail--next" data-shots-next type="button" aria-label="Next screenshot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="plex-shots__counter" data-shots-counter aria-live="polite"></div>
+  </div>
+
+  {# Lightbox modal. Hidden by default; shots.js shows it on slide click. #}
+  <div class="plex-lightbox" data-shots-lightbox hidden role="dialog" aria-modal="true" aria-labelledby="plex-lightbox-title">
+    <div class="plex-lightbox__backdrop" data-shots-close></div>
+    <div class="plex-lightbox__shell">
+      <header class="plex-lightbox__bar">
+        <div class="plex-lightbox__meta">
+          <span class="plex-lightbox__eyebrow">Portal</span>
+          <h3 class="plex-lightbox__title" id="plex-lightbox-title"></h3>
+        </div>
+        <div class="plex-lightbox__controls">
+          <span class="plex-lightbox__count" data-lightbox-count aria-live="polite"></span>
+          <button class="plex-lightbox__navbtn" data-lightbox-prev type="button" aria-label="Previous screenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="plex-lightbox__navbtn" data-lightbox-next type="button" aria-label="Next screenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button class="plex-lightbox__close" data-shots-close type="button" aria-label="Close screenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      </header>
+      <figure class="plex-lightbox__stage">
+        <img class="plex-lightbox__img" data-lightbox-img-light data-theme="light" alt="" />
+        <img class="plex-lightbox__img" data-lightbox-img-dark  data-theme="dark"  alt="" />
+        <figcaption class="plex-lightbox__caption" data-lightbox-body></figcaption>
+      </figure>
+    </div>
+  </div>
 </section>
 
 <section class="plex-section" aria-label="Highlights">
