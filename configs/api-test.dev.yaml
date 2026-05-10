@@ -1,0 +1,32 @@
+# api-test dev config: anonymous, no audit, no DB. Run with:
+#
+#   go run ./cmd/api-test --config configs/api-test.dev.yaml
+#
+# This is the fastest path to a working binary while iterating on
+# endpoints. Audit/DB/portal/auth come online with the .live.yaml profile.
+
+server:
+  name: api-test
+  address: ":8080"
+
+auth:
+  allow_anonymous: true
+
+audit:
+  enabled: false
+
+portal:
+  enabled: false
+
+endpoints:
+  identity:   { enabled: true }
+  data:       { enabled: true }
+  failure:    { enabled: true }
+  echo:       { enabled: true }
+  # The groups below land in M3/M4; toggles are accepted now but the
+  # underlying groups aren't registered until those milestones.
+  streaming:  { enabled: false }
+  pagination: { enabled: false }
+  methods:    { enabled: false }
+  security:   { enabled: false }
+  export:     { enabled: false }

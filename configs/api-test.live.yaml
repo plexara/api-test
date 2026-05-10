@@ -1,0 +1,62 @@
+# api-test live config: full auth + Postgres + Keycloak. Used by `make dev`
+# alongside docker-compose.dev.yml. Secrets come from .env.dev (gitignored;
+# generated on first run by `make dev-secrets`).
+#
+# Postgres lives at localhost:5432; Keycloak at localhost:8081 with the
+# api-test realm pre-seeded by dev/keycloak/api-test-realm.json.
+
+server:
+  name: api-test
+  address: ":8080"
+  base_url: "http://localhost:8080"
+
+oidc:
+  enabled: true
+  issuer: "http://localhost:8081/realms/api-test"
+  audience: "api-test"
+  allowed_clients: ["api-test-portal", "plexara-cc", "plexara-ac"]
+  clock_skew_seconds: 30
+  jwks_cache_ttl: 1h
+
+api_keys:
+  file:
+    - { name: "devkey", key: "${APITEST_DEV_KEY}", description: "dev key from .env.dev" }
+  db:
+    enabled: true
+
+bearer:
+  tokens:
+    - { name: "devbearer", token: "${APITEST_DEV_BEARER:-bearer-please-change}", description: "dev bearer from .env.dev" }
+
+auth:
+  allow_anonymous: false
+  require_for_api: true
+  require_for_portal: true
+
+database:
+  url: "postgres://api:api@localhost:5432/apitest?sslmode=disable"
+
+audit:
+  enabled: true
+  retention_days: 7
+  capture_payloads: true
+  capture_headers: true
+  max_payload_bytes: 1048576
+
+portal:
+  enabled: true
+  cookie_name: "api_test_session"
+  cookie_secret: "${APITEST_COOKIE_SECRET}"
+  cookie_secure: false
+  oidc_redirect_path: "/portal/auth/callback"
+
+endpoints:
+  identity:   { enabled: true }
+  data:       { enabled: true }
+  failure:    { enabled: true }
+  echo:       { enabled: true }
+  streaming:  { enabled: false }
+  pagination: { enabled: false }
+  methods:    { enabled: false }
+  security:   { enabled: false }
+  export:     { enabled: false }

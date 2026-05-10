@@ -1,0 +1,12 @@
+DROP INDEX IF EXISTS audit_payloads_response_headers_gin;
+DROP INDEX IF EXISTS audit_payloads_request_headers_gin;
+DROP INDEX IF EXISTS audit_payloads_replayed_from_idx;
+DROP TABLE IF EXISTS audit_payloads;
+DROP INDEX IF EXISTS audit_events_status_idx;
+DROP INDEX IF EXISTS audit_events_session_idx;
+DROP INDEX IF EXISTS audit_events_user_idx;
+DROP INDEX IF EXISTS audit_events_path_idx;
+DROP INDEX IF EXISTS audit_events_route_idx;
+DROP INDEX IF EXISTS audit_events_ts_idx;
+DROP TABLE IF EXISTS audit_events;
+DROP TABLE IF EXISTS api_keys;
