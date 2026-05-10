@@ -1,42 +1,39 @@
-# Multi-stage build for the api-test fixture binary.
+# syntax=docker/dockerfile:1
 #
-# Stage 1: build the static linux binary with version metadata stamped in.
-# Stage 2: distroless base; the binary doubles as its own healthcheck via
-# `--healthcheck` so we don't need curl/wget in the runtime image.
+# api-test runtime image. Goreleaser supplies the pre-built binary in
+# the build context (one per linux/<arch>); we just bundle it with CA
+# certs and run as a non-root user.
 
-FROM golang:1.26 AS build
+FROM alpine:3.23 AS certs
+RUN apk add --no-cache ca-certificates
 
-ARG TARGETARCH=amd64
-ARG VERSION=dev
-ARG COMMIT=none
-ARG BUILD_DATE=unknown
+FROM scratch
 
-WORKDIR /src
-COPY go.mod go.sum* ./
-RUN go mod download
+# TLS root certs so OIDC discovery (HTTPS to the IdP) works.
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-COPY . .
+# Goreleaser sets TARGETARCH for the platform-specific binary path.
+ARG TARGETARCH
+COPY linux/${TARGETARCH}/api-test /usr/local/bin/api-test
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build \
-        -trimpath \
-        -ldflags "-s -w \
-            -X github.com/plexara/api-test/pkg/build.Version=${VERSION} \
-            -X github.com/plexara/api-test/pkg/build.Commit=${COMMIT} \
-            -X github.com/plexara/api-test/pkg/build.Date=${BUILD_DATE}" \
-        -o /out/api-test \
-        ./cmd/api-test
+# No config is baked in. Operators mount one (or use env vars):
+#
+#   docker run --rm \
+#     -v $(pwd)/api-test.yaml:/app/configs/api-test.yaml:ro \
+#     ghcr.io/plexara/api-test:latest
+#
+# A starter config to copy from lives in the source tree at
+# configs/api-test.example.yaml on the GitHub repo.
 
-FROM gcr.io/distroless/static-debian12:nonroot
-
-COPY --from=build /out/api-test /usr/local/bin/api-test
-COPY --chown=nonroot:nonroot configs/api-test.dev.yaml /etc/api-test/api-test.yaml
+# Non-root (scratch has no /etc/passwd; numeric IDs only).
+USER 1000:1000
 
 EXPOSE 8080
-USER nonroot:nonroot
 
+# The binary doubles as its own healthcheck via `--healthcheck`, which
+# probes 127.0.0.1:8080/healthz. No curl/wget needed in the runtime image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD ["/usr/local/bin/api-test", "--healthcheck"]
 
 ENTRYPOINT ["/usr/local/bin/api-test"]
-CMD ["--config", "/etc/api-test/api-test.yaml"]
+CMD ["--config", "/app/configs/api-test.yaml"]
