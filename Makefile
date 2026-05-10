@@ -61,7 +61,7 @@ CODEQL_RESULT := $(BUILD_DIR)/codeql-results.sarif
         integration codeql require-docker require-codeql require-semgrep require-jq require-node \
         verify tools-check tools-install \
         dev dev-anon dev-up dev-wait dev-ui-if-needed dev-down dev-logs \
-        docker docs docs-serve run version
+        docker docs docs-serve screenshots run version
 
 ## all: Build, test, lint
 all: build test lint
@@ -446,6 +446,25 @@ DOCS_HOST ?= 127.0.0.1
 DOCS_PORT ?= 8001
 docs-serve:
 	mkdocs serve -a $(DOCS_HOST):$(DOCS_PORT)
+
+## screenshots: Capture portal screenshots (light + dark) for the docs site.
+##              Seeds mock audit data via the configured database, then drives
+##              Playwright through every portal page. Requires the binary to
+##              be running on $(SHOTS_BASE_URL) (default http://localhost:8080).
+##              Re-run after any portal UI change.
+##
+##              Sources .env.dev for APITEST_DEV_KEY so the captured-portal API
+##              key matches the running binary's accepted file key. Override
+##              SHOTS_API_KEY explicitly to point at a different deployment
+##              (e.g. staging); that wins over .env.dev.
+SHOTS_BASE_URL ?= http://localhost:8080
+screenshots: dev-secrets require-node
+	@. ./.env.dev && \
+	    KEY="$${SHOTS_API_KEY:-$$APITEST_DEV_KEY}" && \
+	    if [ -z "$$KEY" ]; then echo "no API key: set SHOTS_API_KEY or run make dev-secrets"; exit 1; fi && \
+	    cd scripts/screenshots && \
+	    (test -d node_modules || npm install) && \
+	    APITEST_BASE_URL=$(SHOTS_BASE_URL) APITEST_DEV_KEY="$$KEY" node screenshots.mjs
 
 ## clean: Remove build artifacts (binary, coverage, codeql db/sarif)
 clean:
