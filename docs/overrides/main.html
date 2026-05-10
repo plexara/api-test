@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{#
+  Site-wide overrides for api-test docs (Plexara identity).
+  - extrahead: preconnect, custom OG / theme color metadata.
+  - announce: dismissible banner used for release pointers.
+  - footer: full Plexara-style footer replaces Material's two-row default.
+#}
+
+{% block extrahead %}
+  {{ super() }}
+
+  {# Theme + favicon plumbing. The mark itself lives at images/logo.svg
+     and is referenced from mkdocs.yml; we set the OS / browser surfaces
+     so PWA-style installs and tab pinning use the Plexara midnight. #}
+  <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+  <meta name="msapplication-TileColor" content="#020617" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+
+  {# Canonical URL. Google strongly prefers a single canonical per page;
+     mkdocs-material exposes page.canonical_url which combines site_url
+     with the page path. #}
+  {% if page and page.canonical_url %}
+  <link rel="canonical" href="{{ page.canonical_url }}" />
+  {% endif %}
+
+  {# OpenGraph (Facebook/LinkedIn/Slack/Discord cards). #}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="api-test" />
+  <meta property="og:locale" content="en_US" />
+  {% if page %}
+  <meta property="og:title" content="{{ page.title | default(config.site_name) }} · {{ config.site_name }}" />
+  <meta property="og:description" content="{{ (page.meta and page.meta.description) | default(config.site_description) }}" />
+  {% if page.canonical_url %}<meta property="og:url" content="{{ page.canonical_url }}" />{% endif %}
+  {% else %}
+  <meta property="og:title" content="{{ config.site_name }}" />
+  <meta property="og:description" content="{{ config.site_description }}" />
+  {% endif %}
+  {# OG image: a hand-designed 1200x630 card at images/og-card.png used
+     site-wide so every share preview shows the same Plexara-branded
+     card regardless of which page the link points at (industry pattern
+     for OSS docs: Tailwind, Stripe, Vercel all do this). mkdocs-material's
+     auto-generated per-page social cards (via page.meta.image) take
+     priority when present, but we keep the plugin disabled by default in
+     favor of the curated card; flip enabled: !ENV [CI, true] in mkdocs.yml
+     to opt into per-page cards. #}
+  {% if page and page.meta and page.meta.image %}
+  <meta property="og:image" content="{{ page.meta.image }}" />
+  <meta name="twitter:image" content="{{ page.meta.image }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  {% else %}
+  <meta property="og:image" content="{{ config.site_url }}images/og-card.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="api-test: a controllable HTTP REST fixture for testing API gateways. Plexara open source." />
+  <meta name="twitter:image" content="{{ config.site_url }}images/og-card.png" />
+  <meta name="twitter:image:alt" content="api-test: a controllable HTTP REST fixture for testing API gateways." />
+  <meta name="twitter:card" content="summary_large_image" />
+  {% endif %}
+
+  {# Twitter / X cards. #}
+  <meta name="twitter:site" content="@plexara_io" />
+  <meta name="twitter:title" content="{% if page %}{{ page.title | default(config.site_name) }}{% else %}{{ config.site_name }}{% endif %}" />
+  <meta name="twitter:description" content="{% if page and page.meta and page.meta.description %}{{ page.meta.description }}{% else %}{{ config.site_description }}{% endif %}" />
+
+  {# Standard SEO. #}
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="author" content="Plexara" />
+  <meta name="generator" content="MkDocs Material" />
+
+  {# JSON-LD: SoftwareSourceCode + Organization. Helps Google's knowledge
+     graph attach the site to the project and the publisher. #}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "api-test",
+    "description": "{{ config.site_description }}",
+    "codeRepository": "{{ config.repo_url }}",
+    "programmingLanguage": ["Go", "TypeScript"],
+    "license": "https://www.apache.org/licenses/LICENSE-2.0",
+    "url": "{{ config.site_url }}",
+    "author": {
+      "@type": "Organization",
+      "name": "Plexara",
+      "url": "https://plexara.io",
+      "logo": "https://plexara.io/logo.svg"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Plexara",
+      "url": "https://plexara.io"
+    }
+  }
+  </script>
+
+  {# Google Analytics 4. Same property as the Plexara marketing site so
+     api-test traffic rolls up under one account. consent default
+     "denied" matches the marketing site's CMP-friendly posture. #}
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JTGSBLHDPS"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', { analytics_storage: 'denied' });
+    gtag('js', new Date());
+    gtag('config', 'G-JTGSBLHDPS', {
+      anonymize_ip: true,
+      send_page_view: true
+    });
+  </script>
+{% endblock %}
+
+{# No announce/banner block. Material renders nothing if {% block announce %}
+   is empty, but to be safe we explicitly clear it. #}
+{% block announce %}{% endblock %}
+
+{# Replace Material's stock footer with the Plexara multi-column footer. #}
+{% block footer %}
+<footer class="plex-footer" aria-label="Site footer">
+  <div class="plex-footer__inner">
+    <div class="plex-footer__grid">
+      <div>
+        <a class="plex-footer__brand" href="{{ '' | url }}">
+          <img src="{{ 'images/logo.svg' | url }}" alt="" />
+          <span>api-test</span>
+        </a>
+        <p class="plex-footer__lede">
+          A controllable HTTP REST fixture for API gateways. Open source by
+          <a href="https://plexara.io" rel="noopener" target="_blank" style="color: var(--copper-300);">Plexara</a>,
+          the unified MCP + API gateway with configurable enrichment built in.
+        </p>
+      </div>
+
+      <div class="plex-footer__col">
+        <h3 class="plex-footer__col-title">Project</h3>
+        <ul>
+          <li><a href="{{ 'getting-started/quickstart/' | url }}">Quickstart</a></li>
+          <li><a href="{{ 'configuration/reference/' | url }}">Configuration</a></li>
+          <li><a href="{{ 'endpoints/overview/' | url }}">Endpoints</a></li>
+          <li><a href="{{ 'operations/gateway-testing/' | url }}">Gateway testing</a></li>
+        </ul>
+      </div>
+
+      <div class="plex-footer__col">
+        <h3 class="plex-footer__col-title">Code</h3>
+        <ul>
+          <li><a href="https://github.com/plexara/api-test" rel="noopener" target="_blank">GitHub repository</a></li>
+          <li><a href="https://github.com/plexara/api-test/releases" rel="noopener" target="_blank">Releases</a></li>
+          <li><a href="https://github.com/plexara/api-test/pkgs/container/api-test" rel="noopener" target="_blank">Container image</a></li>
+          <li><a href="https://github.com/plexara/api-test/issues" rel="noopener" target="_blank">Issue tracker</a></li>
+        </ul>
+      </div>
+
+      <div class="plex-footer__col">
+        <h3 class="plex-footer__col-title">Plexara</h3>
+        <ul>
+          <li><a href="https://plexara.io" rel="noopener" target="_blank">plexara.io</a></li>
+          <li><a href="https://plexara.io/product" rel="noopener" target="_blank">Product</a></li>
+          <li><a href="https://plexara.io/contact" rel="noopener" target="_blank">Contact</a></li>
+          <li><a href="https://mcp-test.plexara.io/" rel="noopener" target="_blank">Sister: mcp-test</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="plex-footer__bottom">
+      <span>{{ config.copyright }}. Apache 2.0.</span>
+      <span>
+        Open source by
+        <a href="https://plexara.io" rel="noopener" target="_blank">Plexara</a>.
+      </span>
+    </div>
+  </div>
+</footer>
+{% endblock %}
