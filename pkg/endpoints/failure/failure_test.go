@@ -83,6 +83,41 @@ func TestSlow_FastPath(t *testing.T) {
 	}
 }
 
+func TestSlow_RejectsOverMax(t *testing.T) {
+	mux := newTestMux(t)
+	// At the cap exactly: succeeds (but we shorten the actual sleep via
+	// a cancel so the test doesn't wait 60s; the assertion is on the
+	// status, which gets written only after the sleep completes or
+	// gets cancelled).
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, "/v1/slow?ms=60000", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() { mux.ServeHTTP(w, req); close(done) }()
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	<-done
+	if w.Code != 499 {
+		t.Errorf("at-cap with cancel: status %d want 499", w.Code)
+	}
+
+	// One over the cap: 400 immediately, no sleep.
+	req = httptest.NewRequest(http.MethodGet, "/v1/slow?ms=60001", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("ms=60001 status %d want 400", w.Code)
+	}
+
+	// Way over the cap: 400 immediately.
+	req = httptest.NewRequest(http.MethodGet, "/v1/slow?ms=86400000", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("ms=86400000 status %d want 400", w.Code)
+	}
+}
+
 func TestFlaky_Reproducible(t *testing.T) {
 	mux := newTestMux(t)
 	a := doStatus(t, mux, "/v1/flaky?fail_rate=0.5&seed=abc&call_id=7")

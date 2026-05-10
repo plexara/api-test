@@ -79,7 +79,10 @@ Cancelled response (499; non-standard "client closed" status):
 Bounds:
 
 - `ms <= 0` → 0 (immediate response).
-- `ms > 60000` → capped at 60000 (60s).
+- `ms > 60000` → 400 `{ "error": "ms 60001 exceeds max 60000" }`.
+  (Validate-and-reject mirrors `lorem` and `sized`. Clamping a 24-hour
+  request silently to 60s would lie to the caller about the duration
+  they got.)
 
 ### What it proves
 
