@@ -10,12 +10,8 @@ binary via `go:embed`. It mounts at `/portal/` when `portal.enabled` is
 true; the portal API lives at `/api/v1/portal/*` and is gated by an
 operator session cookie established via OIDC PKCE.
 
-!!! note "Lands in M3"
-    The portal binary support is in place (the Go side mounts
-    `internal/ui/dist` if it has an `index.html`); the SPA itself
-    arrives in M3. Until then, point `portal.enabled` to `false` and
-    use the curl examples in [Quickstart](../getting-started/quickstart.md)
-    or hit Postgres directly for audit queries.
+![api-test portal Dashboard showing 1-hour totals and recent activity, light theme](../images/portal/dashboard-light.png#only-light)
+![api-test portal Dashboard showing 1-hour totals and recent activity, dark theme](../images/portal/dashboard-dark.png#only-dark)
 
 ## Pages
 
@@ -40,9 +36,64 @@ Two paths reach portal data:
   for headless operators (CI dashboards, kiosks). The portal API
   accepts both schemes.
 
+![Portal sign-in screen with OIDC button and API key form, light theme](../images/portal/login-light.png#only-light)
+![Portal sign-in screen with OIDC button and API key form, dark theme](../images/portal/login-dark.png#only-dark)
+
 The portal session is *separate* from the inbound auth chain that
 gates `/v1/*`. An operator can have a portal session without any of
 the gateway's connection credentials.
+
+## Endpoints
+
+The Endpoints page is a catalog of every registered route, grouped by
+behavior (identity, deterministic data, echo, controlled failure modes).
+Click any row to see method, path, group, auth requirement, description,
+and a curl hint for invoking the route directly.
+
+![Endpoints catalog with the right-pane detail card for a selected route, light theme](../images/portal/endpoints-detail-light.png#only-light)
+![Endpoints catalog with the right-pane detail card for a selected route, dark theme](../images/portal/endpoints-detail-dark.png#only-dark)
+
+## Audit log
+
+The Audit page is the filterable, paginated event view. Filters cover
+HTTP method, path-contains, and success / error; the table auto-refreshes
+on a 5-second interval.
+
+![Audit page with the events table and filter row, light theme](../images/portal/audit-light.png#only-light)
+![Audit page with the events table and filter row, dark theme](../images/portal/audit-dark.png#only-dark)
+
+Clicking any row opens a detail panel on the right showing the timestamp,
+duration, request id, identity, remote address, byte counts, plus the
+full request and response trees (headers, query, body) when the
+`audit_payloads` row is present.
+
+![Audit detail panel open over the events table, showing identity / timing fields and request / response trees, light theme](../images/portal/audit-detail-light.png#only-light)
+![Audit detail panel open over the events table, showing identity / timing fields and request / response trees, dark theme](../images/portal/audit-detail-dark.png#only-dark)
+
+## API keys
+
+Create or revoke Postgres-backed bcrypt keys. The plaintext is shown
+exactly once at creation time and never stored.
+
+![API keys page with the create form and key listing, light theme](../images/portal/keys-light.png#only-light)
+![API keys page with the create form and key listing, dark theme](../images/portal/keys-dark.png#only-dark)
+
+## Config
+
+A read-only view of the running server config, with secrets masked.
+Useful for sanity-checking what's actually loaded when you suspect an
+env-var or override didn't land.
+
+![Config page rendering the loaded YAML with secrets masked, light theme](../images/portal/config-light.png#only-light)
+![Config page rendering the loaded YAML with secrets masked, dark theme](../images/portal/config-dark.png#only-dark)
+
+## About
+
+Build info plus the same well-known metadata an MCP / API client sees
+(api endpoint, OIDC issuer URL, audience).
+
+![About page with build info and well-known metadata, light theme](../images/portal/about-light.png#only-light)
+![About page with build info and well-known metadata, dark theme](../images/portal/about-dark.png#only-dark)
 
 ## Try-It
 
