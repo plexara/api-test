@@ -155,6 +155,18 @@ type LoremResponse struct {
 	Body  string `json:"body"`
 }
 
+const (
+	// loremDefaultWords is the word count used when the caller omits
+	// or sends a non-positive ?words= value.
+	loremDefaultWords = 50
+	// loremMaxWords caps the response word count so a caller can't
+	// trigger an unbounded allocation by passing ?words=2147483647.
+	// CodeQL's go/uncontrolled-allocation-size query specifically
+	// recognizes the `min(n, const)` pattern; the older `if n > N { n = N }`
+	// form does not break the taint flow even though it's runtime-safe.
+	loremMaxWords = 5000
+)
+
 // loremDict is a small word bank for fake-Latin generation.
 var loremDict = []string{
 	"lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
@@ -172,11 +184,13 @@ func (g *Group) lorem(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	n, _ := strconv.Atoi(q.Get("words"))
 	if n <= 0 {
-		n = 50
+		n = loremDefaultWords
 	}
-	if n > 5000 {
-		n = 5000
-	}
+	// min() (Go 1.21+) is the form CodeQL's go/uncontrolled-allocation-size
+	// taint-flow query recognizes as a bound; replacing the prior
+	// `if n > 5000 { n = 5000 }` clamp here is a CodeQL-shape change,
+	// not a behavior change. See loremMaxWords doc for context.
+	n = min(n, loremMaxWords)
 	rng := newRand(q.Get("seed"))
 	words := make([]string, n)
 	for i := 0; i < n; i++ {
