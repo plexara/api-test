@@ -1,0 +1,88 @@
+# Development stack for api-test.
+#
+#   docker compose -f docker-compose.dev.yml up -d postgres keycloak
+#
+# Services:
+#   - postgres: stores audit_events, audit_payloads, api_keys
+#   - keycloak: real OIDC IdP for testing portal browser login (PKCE)
+#               and the Plexara API gateway's oauth2_client_credentials /
+#               oauth2_authorization_code connections (the JWTs the
+#               gateway forwards as Authorization: Bearer <jwt> are
+#               validated by api-test against this Keycloak's JWKS).
+#
+# To bring up the binary too: `docker compose -f docker-compose.dev.yml --profile server up`.
+# Most of the time we run the binary outside compose with `make dev` for
+# faster iteration.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: api-test-pg
+    environment:
+      POSTGRES_USER: api
+      POSTGRES_PASSWORD: api
+      POSTGRES_DB: apitest
+    # Bind to loopback only so the dev DB isn't reachable from the local
+    # network. Override with COMPOSE_BIND=0.0.0.0 if you actually need it.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - api-test-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: api-test-keycloak
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./dev/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Runtime image of api-test for compose users who want everything in
+  # docker. Most of the time `make dev` is faster: it runs the binary
+  # outside compose against the postgres + keycloak services above.
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: api-test:dev
+    container_name: api-test-server
+    environment:
+      APITEST_DB_URL: postgres://api:api@postgres:5432/apitest?sslmode=disable
+      APITEST_BASE_URL: http://localhost:8080
+      APITEST_OIDC_ISSUER: http://keycloak:8080/realms/api-test
+      APITEST_OIDC_AUDIENCE: api-test
+      APITEST_OIDC_CLIENT_ID: api-test-portal
+      # Both required (no in-config defaults). For dev convenience compose
+      # passes literal placeholders here; in any non-dev use, set them
+      # via shell env or a .env file. `make dev-secrets` writes them to
+      # a gitignored .env.dev that compose reads via env_file.
+      APITEST_COOKIE_SECRET: ${APITEST_COOKIE_SECRET:?required}
+      APITEST_DEV_KEY: ${APITEST_DEV_KEY:?required}
+      APITEST_DEV_BEARER: ${APITEST_DEV_BEARER:?required}
+    command: ["--config", "/app/configs/api-test.yaml"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    profiles:
+      - server
+
+volumes:
+  api-test-pg-data:
