@@ -16,9 +16,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/plexara/api-test/internal/ui"
 	"github.com/plexara/api-test/pkg/apikeys"
 	"github.com/plexara/api-test/pkg/audit"
 	auditpg "github.com/plexara/api-test/pkg/audit/postgres"
+	"github.com/plexara/api-test/pkg/auth"
 	"github.com/plexara/api-test/pkg/auth/inbound"
 	"github.com/plexara/api-test/pkg/build"
 	"github.com/plexara/api-test/pkg/config"
@@ -109,12 +111,77 @@ func Build(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Appli
 	}
 
 	app.readiness = httpsrv.NewReadiness()
-	core := httpsrv.BuildMux(app.registry, app.readiness, endpointMW)
+
+	// --- Portal (M3+) ---
+	portalDeps, err := buildPortal(ctx, cfg, app.chain, app.auditLog, app.registry, app.dbKeys, logger)
+	if err != nil {
+		return nil, fmt.Errorf("portal: %w", err)
+	}
+
+	core := httpsrv.BuildMux(app.registry, app.readiness, endpointMW, portalDeps)
 	// AccessLog + RequestID wrap the entire mux so health probes also get
 	// request ids; identity/audit only run on endpoint group routes (via
 	// endpointMW above).
 	app.mux = httpmw.RequestID(httpmw.AccessLog(logger)(core))
 	return app, nil
+}
+
+// buildPortal returns the portal handler bundle when cfg.Portal.Enabled is
+// true. Returns (nil, nil) when the portal is disabled — the mux falls back
+// to the bare /v1/* + /healthz surface.
+//
+// The OIDC validator + BrowserAuth construction will hit the configured
+// issuer's discovery URL at startup; misconfiguration (wrong issuer, IdP
+// down) fails Build() rather than the first portal request.
+func buildPortal(
+	ctx context.Context,
+	cfg *config.Config,
+	chain *inbound.Chain,
+	auditLog audit.Logger,
+	registry *endpoints.Registry,
+	keys *apikeys.Store,
+	logger *slog.Logger,
+) (*httpsrv.PortalDeps, error) {
+	if !cfg.Portal.Enabled {
+		return nil, nil
+	}
+	sessions, err := httpsrv.NewSessionStore(
+		cfg.Portal.CookieName,
+		cfg.Portal.CookieSecret,
+		cfg.Portal.CookieSecure,
+		0,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("session store: %w", err)
+	}
+	deps := &httpsrv.PortalDeps{
+		Cfg:        cfg,
+		PortalAuth: httpsrv.NewPortalAuth(sessions, chain),
+		PortalAPI:  httpsrv.NewPortalAPI(cfg, registry, auditLog, keys),
+	}
+	if cfg.OIDC.Enabled {
+		validator, err := auth.NewOIDC(ctx, cfg.OIDC)
+		if err != nil {
+			return nil, fmt.Errorf("oidc validator: %w", err)
+		}
+		ba, err := httpsrv.NewBrowserAuth(ctx, cfg, validator, sessions, logger)
+		if err != nil {
+			return nil, fmt.Errorf("browser auth: %w", err)
+		}
+		deps.BrowserAuth = ba
+	} else {
+		logger.Info("portal: oidc disabled, login will not work")
+	}
+	if ui.Available() {
+		spa, err := ui.FS()
+		if err != nil {
+			return nil, fmt.Errorf("ui fs: %w", err)
+		}
+		deps.SPA = spa
+	} else {
+		logger.Warn("portal: ui dist is empty (run `make ui`); /portal/ will return 503")
+	}
+	return deps, nil
 }
 
 // BuildWithDeps assembles an Application from supplied dependencies,
@@ -139,7 +206,7 @@ func BuildWithDeps(cfg *config.Config, logger *slog.Logger, chain *inbound.Chain
 		return identityMW(auditMW(next))
 	}
 	readiness := httpsrv.NewReadiness()
-	core := httpsrv.BuildMux(registry, readiness, endpointMW)
+	core := httpsrv.BuildMux(registry, readiness, endpointMW, nil)
 	mux := httpmw.RequestID(httpmw.AccessLog(logger)(core))
 	return &Application{
 		cfg:       cfg,
