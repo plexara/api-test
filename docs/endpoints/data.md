@@ -109,10 +109,12 @@ Response (200):
 { "words": 5, "body": "Ad excepteur anim sint laborum." }
 ```
 
-Defaults and caps:
+Defaults and bounds:
 
 - `words <= 0` (omitted) → defaults to 50.
-- `words > 5000` → capped at 5000.
+- `words > 5000` → 400 `{ "error": "words 5001 exceeds max 5000" }`.
+  (Validate-and-reject mirrors the `sized` endpoint and is the form
+  CodeQL's allocation-size taint analysis recognizes as a bound.)
 - `seed` is hashed (FNV-64) twice with different salts to seed a
   PCG generator, so different seeds give independent streams.
 

@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- intentional: PCG seeded from a caller-supplied string for reproducible test fixtures; crypto/rand would defeat the determinism contract. Mirrors the //#nosec G404 annotations on the use sites.
 	"net/http"
 	"strconv"
 	"strings"
@@ -159,11 +159,13 @@ const (
 	// loremDefaultWords is the word count used when the caller omits
 	// or sends a non-positive ?words= value.
 	loremDefaultWords = 50
-	// loremMaxWords caps the response word count so a caller can't
-	// trigger an unbounded allocation by passing ?words=2147483647.
-	// CodeQL's go/uncontrolled-allocation-size query specifically
-	// recognizes the `min(n, const)` pattern; the older `if n > N { n = N }`
-	// form does not break the taint flow even though it's runtime-safe.
+	// loremMaxWords is the upper bound on the response word count.
+	// Requests with ?words > loremMaxWords return 400. Matches the
+	// validate-and-reject shape of `sized` so CodeQL's
+	// go/uncontrolled-allocation-size taint-flow query recognizes the
+	// early return as a sanitizer; clamping (`if n > N { n = N }`) and
+	// `min(n, N)` both leave the value tainted in CodeQL's model even
+	// though they are runtime-safe.
 	loremMaxWords = 5000
 )
 
@@ -186,11 +188,11 @@ func (g *Group) lorem(w http.ResponseWriter, r *http.Request) {
 	if n <= 0 {
 		n = loremDefaultWords
 	}
-	// min() (Go 1.21+) is the form CodeQL's go/uncontrolled-allocation-size
-	// taint-flow query recognizes as a bound; replacing the prior
-	// `if n > 5000 { n = 5000 }` clamp here is a CodeQL-shape change,
-	// not a behavior change. See loremMaxWords doc for context.
-	n = min(n, loremMaxWords)
+	if n > loremMaxWords {
+		writeJSONError(w, http.StatusBadRequest,
+			fmt.Sprintf("words %d exceeds max %d", n, loremMaxWords))
+		return
+	}
 	rng := newRand(q.Get("seed"))
 	words := make([]string, n)
 	for i := 0; i < n; i++ {

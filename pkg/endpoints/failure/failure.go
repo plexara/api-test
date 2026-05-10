@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used -- intentional: PCG seeded from (seed, callID) for reproducible flaky-test outcomes; crypto/rand would defeat the determinism contract. Mirrors the //#nosec G404 annotations on the use sites.
 	"net/http"
 	"strconv"
 	"time"
@@ -92,13 +92,21 @@ type SlowResponse struct {
 	RequestedM int   `json:"requested_ms"`
 }
 
+// slowMaxMS is the upper bound on the per-request sleep. Requests with
+// ?ms > slowMaxMS return 400. Validate-and-reject mirrors the lorem and
+// sized handlers; clamping silently lies to the caller (?ms=86400000
+// would return slept_ms=60000 with no error indicator).
+const slowMaxMS = 60_000
+
 func (g *Group) slow(w http.ResponseWriter, r *http.Request) {
 	ms, _ := strconv.Atoi(r.URL.Query().Get("ms"))
 	if ms < 0 {
 		ms = 0
 	}
-	if ms > 60_000 {
-		ms = 60_000
+	if ms > slowMaxMS {
+		writeJSONError(w, http.StatusBadRequest,
+			fmt.Sprintf("ms %d exceeds max %d", ms, slowMaxMS))
+		return
 	}
 	start := time.Now()
 	timer := time.NewTimer(time.Duration(ms) * time.Millisecond)

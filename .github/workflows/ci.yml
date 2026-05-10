@@ -148,14 +148,17 @@ jobs:
           repo-checkout: false
 
       - name: Semgrep
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          # Two configs: the community Go ruleset plus our local rules.
-          # YAML list (rather than a folded scalar) so the action sees
-          # them as distinct entries even if it tightens parsing later.
-          config: |
-            p/golang
-            .semgrep/
+        # `semgrep/semgrep-action@v1` exits 0 even when findings are
+        # present (it's designed to upload to AppSec Platform when
+        # SEMGREP_APP_TOKEN is set, otherwise just print). We need it
+        # to FAIL the job on findings so CI matches the local
+        # `make semgrep` gate (which uses --error). Run the CLI
+        # directly. Version is pinned (mirrors $(SEMGREP_VERSION) in
+        # the Makefile); --break-system-packages is required on
+        # ubuntu-24.04's PEP 668 system Python.
+        run: |
+          python3 -m pip install --quiet --break-system-packages 'semgrep==1.110.0'
+          semgrep scan --error --quiet --config p/golang --config .semgrep/
 
   integration:
     name: Integration tests

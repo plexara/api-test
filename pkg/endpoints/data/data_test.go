@@ -78,8 +78,10 @@ func TestLorem_SeededReproducible(t *testing.T) {
 	}
 }
 
-func TestLorem_DefaultsAndCaps(t *testing.T) {
+func TestLorem_DefaultsAndRejects(t *testing.T) {
 	mux := newTestMux(t)
+
+	// ?words=0 → defaults to 50 words and a body terminating in a period.
 	body := doGet(t, mux, "/v1/lorem?words=0&seed=x")
 	var resp LoremResponse
 	if err := json.Unmarshal([]byte(body), &resp); err != nil {
@@ -88,15 +90,35 @@ func TestLorem_DefaultsAndCaps(t *testing.T) {
 	if resp.Words != 50 {
 		t.Errorf("default words = %d want 50", resp.Words)
 	}
-	body = doGet(t, mux, "/v1/lorem?words=100000&seed=x")
+	if !strings.HasSuffix(resp.Body, ".") {
+		t.Error("lorem body missing trailing period")
+	}
+
+	// ?words=5000 (the cap exactly) → still succeeds.
+	body = doGet(t, mux, "/v1/lorem?words=5000&seed=x")
 	if err := json.Unmarshal([]byte(body), &resp); err != nil {
 		t.Fatal(err)
 	}
 	if resp.Words != 5000 {
-		t.Errorf("cap = %d want 5000", resp.Words)
+		t.Errorf("at-cap words = %d want 5000", resp.Words)
 	}
-	if !strings.HasSuffix(resp.Body, ".") {
-		t.Error("lorem body missing trailing period")
+
+	// ?words=5001 (one over the cap) → 400 (validate-and-reject; CodeQL's
+	// go/uncontrolled-allocation-size query recognizes early return as
+	// a sanitizer but does NOT recognize a clamp).
+	req := httptest.NewRequest(http.MethodGet, "/v1/lorem?words=5001&seed=x", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("words=5001 status %d want 400", w.Code)
+	}
+
+	// ?words=100000 (well over the cap) → 400 same as above.
+	req = httptest.NewRequest(http.MethodGet, "/v1/lorem?words=100000&seed=x", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("words=100000 status %d want 400", w.Code)
 	}
 }
 
