@@ -55,7 +55,7 @@ CODEQL_RESULT := $(BUILD_DIR)/codeql-results.sarif
 
 .PHONY: all build build-all test test-short bench fmt fmt-check vet tidy \
         mod-tidy-check mod-verify clean help dev-secrets \
-        ui ui-dev ui-clean ui-verify embed-clean \
+        ui ui-dev ui-clean ui-verify check-ui-embed embed-clean \
         lint security gosec govulncheck semgrep \
         coverage coverage-gate coverage-report \
         integration codeql require-docker require-codeql require-semgrep require-jq require-node \
@@ -67,11 +67,33 @@ CODEQL_RESULT := $(BUILD_DIR)/codeql-results.sarif
 all: build test lint
 
 ## build: Build the binary into ./bin/api-test
-build:
+##        Refuses to build when the SPA embed dir is empty — the Go
+##        //go:embed directive would silently produce a binary that
+##        serves a JSON stub instead of the portal. Run `make ui` first
+##        (or `make all` which chains them in order).
+build: check-ui-embed
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
 	@echo "Binary built: $(BUILD_DIR)/$(BINARY_NAME)"
+
+## check-ui-embed: Verify $(UI_EMBED_DIR) has a built SPA. Used as a
+##                 build-time prerequisite so a freshly cloned tree
+##                 (only $(UI_EMBED_DIR)/.gitkeep present) doesn't
+##                 produce a UI-less binary by accident.
+check-ui-embed:
+	@if [ ! -f $(UI_EMBED_DIR)/index.html ]; then \
+		echo ""; \
+		echo "FAIL: $(UI_EMBED_DIR)/index.html missing."; \
+		echo "      The Go binary embeds $(UI_EMBED_DIR) via //go:embed."; \
+		echo "      Without a built SPA there, the portal serves a JSON"; \
+		echo "      stub instead of the React UI. Run:"; \
+		echo ""; \
+		echo "          make ui"; \
+		echo ""; \
+		echo "      and re-run `make build`."; \
+		exit 1; \
+	fi
 
 ## build-all: go build -v ./... (mirrors CI's Build job; catches build paths
 ##            that `go test` would skip — packages without tests, etc.)
@@ -86,14 +108,40 @@ ui: require-node
 	cd $(UI_DIR) && pnpm install --frozen-lockfile && pnpm build
 	@rm -rf $(UI_EMBED_DIR)
 	@cp -R $(UI_DIR)/dist $(UI_EMBED_DIR)
+	@# Re-add the .gitkeep so the directory stays tracked in git even
+	@# though the bundle itself is gitignored. Fresh clones rely on the
+	@# .gitkeep so the //go:embed directive in internal/ui/embed.go has
+	@# a directory to point at before `make ui` runs.
+	@touch $(UI_EMBED_DIR)/.gitkeep
 	@echo "UI built and copied to $(UI_EMBED_DIR)."
 
-## ui-verify: TypeScript + Vite build of the SPA without copying to the
-##            embed dir. Mirrored from CI's frontend job — catches type
-##            errors and broken imports without rebuilding the Go binary.
+## ui-verify: TypeScript + Vite build of the SPA, then fail if the
+##            embedded copy in $(UI_EMBED_DIR) does not match the fresh
+##            build under $(UI_DIR)/dist. The Go binary embeds the latter
+##            via //go:embed, so a stale embed silently ships old UI
+##            even when source is current. This gate makes that failure
+##            mode loud (same posture as fmt-check / mod-tidy-check).
+##            To fix a failure: run `make ui` and commit $(UI_EMBED_DIR).
 ui-verify: require-node
 	@echo "Verifying UI (typecheck + build)..."
 	cd $(UI_DIR) && pnpm install --frozen-lockfile && pnpm build
+	@echo "Checking embedded SPA bundle is in sync with fresh build..."
+	@# .gitkeep lives in the embed dir only (to keep the gitignored
+	@# directory tracked); exclude it from the comparison.
+	@if ! diff -r --brief --exclude=.gitkeep $(UI_DIR)/dist $(UI_EMBED_DIR) > /dev/null 2>&1; then \
+		echo ""; \
+		echo "FAIL: $(UI_EMBED_DIR) is stale relative to $(UI_DIR)/dist."; \
+		echo "      The Go binary embeds $(UI_EMBED_DIR); without refreshing"; \
+		echo "      it, the binary ships an outdated SPA even when source is"; \
+		echo "      current. Run:"; \
+		echo ""; \
+		echo "          make ui"; \
+		echo "          git add $(UI_EMBED_DIR)"; \
+		echo ""; \
+		echo "      and commit before re-running verify."; \
+		exit 1; \
+	fi
+	@echo "Embedded SPA bundle is in sync."
 
 ## ui-dev: Run Vite dev server (proxies /api to localhost:8080).
 ui-dev:

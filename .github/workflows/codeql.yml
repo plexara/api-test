@@ -41,13 +41,23 @@ jobs:
         uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: go
+          # Manual build mode. Autobuild runs `make` (default target =
+          # `all` = `build test lint`), which on a fresh CI checkout
+          # tripped the make build → check-ui-embed gate because
+          # internal/ui/dist/ is gitignored except for .gitkeep and
+          # `make ui` hasn't run. CodeQL only needs Go to compile for
+          # type tracing; it doesn't need a working portal. Building
+          # via `go build ./...` matches what the CI Build job does
+          # (ci.yml step "Build") and decouples CodeQL from any
+          # future Makefile prerequisite changes.
+          build-mode: manual
           # security-and-quality bundles the security pack with style /
           # correctness rules. Project-specific query exclusions live
           # in the config-file; findings post to the repo's Security tab.
           config-file: ./.github/codeql/codeql-config.yml
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
+      - name: Build
+        run: go build -v ./...
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
