@@ -8,6 +8,7 @@ import App from "./App";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Endpoints from "./pages/Endpoints";
+import Discovery from "./pages/Discovery";
 import Audit from "./pages/Audit";
 import ApiKeys from "./pages/ApiKeys";
 import Config from "./pages/Config";
@@ -32,6 +33,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <Route index element={<Dashboard />} />
               <Route path="endpoints" element={<Endpoints />} />
               <Route path="endpoints/:name" element={<Endpoints />} />
+              <Route path="discovery" element={<Discovery />} />
               <Route path="audit" element={<Audit />} />
               <Route path="keys" element={<ApiKeys />} />
               <Route path="config" element={<Config />} />

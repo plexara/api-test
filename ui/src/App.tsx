@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useAuth } from "./stores/auth";
 import ThemeToggle from "./components/ThemeToggle";
 import { SidebarBrand, SponsoredBy } from "./components/Brand";
-import { Activity, Network, ShieldCheck, KeyRound, Settings, Info, LogOut } from "lucide-react";
+import { Activity, Network, ShieldCheck, KeyRound, Settings, Info, LogOut, BookOpen } from "lucide-react";
 
 function prettySubject(s: string | undefined): string {
   if (!s) return "";
@@ -15,6 +15,7 @@ function prettySubject(s: string | undefined): string {
 const NAV: { to: string; label: string; icon: typeof Activity }[] = [
   { to: "/",          label: "Dashboard", icon: Activity },
   { to: "/endpoints", label: "Endpoints", icon: Network },
+  { to: "/discovery", label: "Discovery", icon: BookOpen },
   { to: "/audit",     label: "Audit",     icon: ShieldCheck },
   { to: "/keys",      label: "API Keys",  icon: KeyRound },
   { to: "/config",    label: "Config",    icon: Settings },
