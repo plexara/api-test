@@ -43,8 +43,15 @@ export default function App() {
   }
 
   return (
-    <div className="grid grid-cols-[14rem_1fr] min-h-full bg-background text-foreground">
-      <aside className="border-r border-border bg-card p-4 flex flex-col">
+    // h-full (not min-h-full) so <main> is height-constrained: with
+    // min-h-full the outer grid grows with its content and the
+    // document does the scrolling, which means main's overflow-auto
+    // never fires and position: sticky inside any page has no scroll
+    // context to anchor to. h-full pins the chrome to the viewport so
+    // main owns the scroll, sticky works, and pages get the
+    // h-[calc(100vh-...)] sizing they already assume.
+    <div className="grid grid-cols-[14rem_1fr] h-full bg-background text-foreground">
+      <aside className="border-r border-border bg-card p-4 flex flex-col overflow-y-auto">
         <SidebarBrand />
         <nav className="flex flex-col gap-1">
           {NAV.map((it) => (
