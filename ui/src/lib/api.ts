@@ -148,6 +148,23 @@ export type AuditMeta = {
   features: { timeseries: boolean; breakdown: boolean; stream: boolean; export: boolean; replay: boolean };
 };
 
+export type TryItRequest = {
+  method?: string;
+  path_params?: Record<string, string>;
+  query_params?: Record<string, string[]>;
+  headers?: Record<string, string[]>;
+  body?: string;
+};
+
+export type TryItResponse = {
+  dispatched_to: string;
+  method: string;
+  status: number;
+  headers: Record<string, string[]>;
+  body: string;
+  body_truncated: boolean;
+};
+
 export type DashboardResponse = {
   window_from: string;
   window_to: string;
@@ -176,6 +193,8 @@ export const portalAPI = {
   auditEvent:   (id: string) => api.get<AuditEvent>(`/api/v1/portal/audit/events/${encodeURIComponent(id)}`),
   dashboard:    () => api.get<DashboardResponse>("/api/v1/portal/dashboard"),
   wellknown:    () => api.get<{ protected_resource_url: string; authorization_server: string; oidc_enabled: boolean; audience: string; api_endpoint: string }>("/api/v1/portal/wellknown"),
+  tryIt:        (group: string, route: string, body: TryItRequest) =>
+    api.post<TryItResponse>(`/api/v1/portal/tryit/${encodeURIComponent(group)}/${encodeURIComponent(route)}`, body),
 };
 
 export const adminAPI = {

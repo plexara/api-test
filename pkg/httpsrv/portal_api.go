@@ -33,7 +33,7 @@ type PortalAPI struct {
 	registry     *endpoints.Registry
 	audit        audit.Logger
 	keys         *apikeys.Store // nil if config.APIKeys.DB.Enabled=false
-	replayTarget http.Handler   // nil disables /audit/replay
+	replayTarget http.Handler   // nil disables /audit/replay and /tryit
 }
 
 // NewPortalAPI returns the API. keys may be nil when the DB-backed key store
@@ -47,25 +47,32 @@ func NewPortalAPI(
 	return &PortalAPI{cfg: cfg, registry: registry, audit: auditLog, keys: keys}
 }
 
-// WithReplayTarget enables the audit replay endpoint, dispatching
-// re-issued requests through h. h is the mux *before* the wrapping
-// access-log / request-id / browser-redirect / CORS layers — that
-// way replays go straight to the audit middleware and the registered
-// routes without recursing through the portal API itself. Returns
-// the receiver so the composition can chain.
+// WithReplayTarget enables the audit replay and Try-It endpoints,
+// dispatching requests through h. h is the mux *before* the wrapping
+// access-log / request-id / browser-redirect / CORS layers — that way
+// dispatched requests go straight to the audit middleware and the
+// registered routes without recursing through the portal API itself.
+// Returns the receiver so the composition can chain.
 func (p *PortalAPI) WithReplayTarget(h http.Handler) *PortalAPI {
 	p.replayTarget = h
 	return p
 }
 
+// WithDispatchTarget is an alias for WithReplayTarget kept for call
+// sites added before the field rename. Use WithReplayTarget for new
+// code; this shim will be removed once external callers update.
+func (p *PortalAPI) WithDispatchTarget(h http.Handler) *PortalAPI {
+	return p.WithReplayTarget(h)
+}
+
 // Mount adds every endpoint behind the supplied auth middleware.
 //
-// As a side effect, the supplied mux becomes the default replay target
-// for /audit/replay if WithReplayTarget hasn't already been called. The
-// mux at the time replay is invoked has every /v1/* route mounted on
-// it (BuildMux mounts those before calling PortalAPI.Mount), so the
-// replay dispatches into the audit-wrapped endpoint handlers and the
-// replay shows up as a new audit row.
+// As a side effect, the supplied mux becomes the default replay/dispatch
+// target for /audit/replay and /tryit if WithReplayTarget hasn't already
+// been called. The mux at the time those endpoints are invoked has every
+// /v1/* route mounted on it (BuildMux mounts those before calling
+// PortalAPI.Mount), so dispatched/replayed requests go straight into
+// the audit-wrapped endpoint handlers and show up as new audit rows.
 func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler) {
 	if p.replayTarget == nil {
 		p.replayTarget = mux
@@ -89,6 +96,8 @@ func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler
 	mux.Handle("GET /api/v1/portal/audit/stream", mw(http.HandlerFunc(p.auditStream)))
 	mux.Handle("GET /api/v1/portal/audit/export.ndjson", mw(http.HandlerFunc(p.auditExportNDJSON)))
 	mux.Handle("POST /api/v1/portal/audit/replay/{id}", wrap(http.HandlerFunc(p.auditReplay)))
+
+	mux.Handle("POST /api/v1/portal/tryit/{group}/{route}", wrap(http.HandlerFunc(p.tryIt)))
 
 	mux.Handle("GET /api/v1/admin/keys", mw(http.HandlerFunc(p.listKeys)))
 	mux.Handle("POST /api/v1/admin/keys", wrap(http.HandlerFunc(p.createKey)))
