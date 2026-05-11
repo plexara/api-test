@@ -23,9 +23,9 @@ endpoints:
   data:       { enabled: true }
   failure:    { enabled: true }
   echo:       { enabled: true }
-  # The groups below land in M3/M4; toggles are accepted now but the
-  # underlying groups aren't registered until those milestones.
-  streaming:  { enabled: false }
+  streaming:  { enabled: true }
+  # The groups below ship later; toggles are accepted now but the
+  # underlying groups aren't registered until they're implemented.
   pagination: { enabled: false }
   methods:    { enabled: false }
   security:   { enabled: false }
