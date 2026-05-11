@@ -31,6 +31,7 @@ import (
 	"github.com/plexara/api-test/pkg/endpoints/echo"
 	"github.com/plexara/api-test/pkg/endpoints/failure"
 	"github.com/plexara/api-test/pkg/endpoints/identity"
+	"github.com/plexara/api-test/pkg/endpoints/methods"
 	"github.com/plexara/api-test/pkg/endpoints/pagination"
 	"github.com/plexara/api-test/pkg/endpoints/streaming"
 	"github.com/plexara/api-test/pkg/httpmw"
@@ -273,6 +274,9 @@ func buildRegistry(cfg *config.Config) *endpoints.Registry {
 	}
 	if cfg.Endpoints.Pagination.Enabled {
 		r.Add(pagination.New())
+	}
+	if cfg.Endpoints.Methods.Enabled {
+		r.Add(methods.New())
 	}
 	return r
 }

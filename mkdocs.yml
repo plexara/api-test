@@ -78,6 +78,7 @@ nav:
       - Echo: endpoints/echo.md
       - Streaming: endpoints/streaming.md
       - Pagination: endpoints/pagination.md
+      - Methods: endpoints/methods.md
   - Operations:
       - Audit Log: operations/audit.md
       - Portal: operations/portal.md
