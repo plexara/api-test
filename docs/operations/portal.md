@@ -53,6 +53,23 @@ and a curl hint for invoking the route directly.
 ![Endpoints catalog with the right-pane detail card for a selected route, light theme](../images/portal/endpoints-detail-light.png#only-light)
 ![Endpoints catalog with the right-pane detail card for a selected route, dark theme](../images/portal/endpoints-detail-dark.png#only-dark)
 
+## Discovery
+
+A native OpenAPI 3.1 reference rendered directly from
+[/openapi.json](../reference/http-api.md#discovery), with full
+light / dark parity against the portal's design tokens. Operations are
+grouped by tag in a left rail; each card expands to show parameters,
+request body schema, responses, and a minimal example synthesized from
+the schema. The page-level filter searches path, summary, and
+operationId across every operation.
+
+The canonical Redoc view at `/docs` is still served by the binary and
+is linked from the page header (top right) for operators who prefer
+it.
+
+![Discovery page with the tag rail, operation list, and an expanded operation card, light theme](../images/portal/discovery-light.png#only-light)
+![Discovery page with the tag rail, operation list, and an expanded operation card, dark theme](../images/portal/discovery-dark.png#only-dark)
+
 ## Audit log
 
 The Audit page is the filterable, paginated event view. Filters cover

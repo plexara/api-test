@@ -248,7 +248,12 @@ function DiscoveryShell({
           <h1 className="text-lg font-semibold flex items-baseline gap-2">
             <span>Discovery</span>
             {info?.version && (
-              <span className="mono text-xs text-muted-foreground">v{info.version}</span>
+              // OpenAPI docs use either "1.0.0" or "v1.0.0" for info.version;
+              // prepending "v" unconditionally produced "vv1.0.0". Strip a
+              // leading "v" before re-adding.
+              <span className="mono text-xs text-muted-foreground">
+                v{info.version.replace(/^v/i, "")}
+              </span>
             )}
           </h1>
           <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
