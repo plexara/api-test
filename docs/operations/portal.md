@@ -22,7 +22,7 @@ operator session cookie established via OIDC PKCE.
 | **Audit** | Filterable, paginated event view; click a row for the full request/response drawer with redaction overlays. |
 | **API Keys** | Create / revoke Postgres-backed bcrypt keys. Plaintext shown once. |
 | **Config** | Read-only YAML of the running server, with secrets masked. |
-| **Discovery** | Redoc/Swagger UI iframe over `/openapi.json`; click-to-copy connection-registration YAML for the Plexara admin API. |
+| **Discovery** | Native OpenAPI 3.1 reference rendered from `/openapi.json` (groups, operations, parameters, schemas, response samples; full dark/light parity with the portal). Links out to `/docs` (Redoc) for the canonical view. |
 | **About** | Build info + "test against Plexara" cheat sheet. |
 
 ## Authentication

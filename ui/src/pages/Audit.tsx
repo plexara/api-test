@@ -42,9 +42,26 @@ export default function Audit() {
         </select>
       </div>
 
-      <div className="grid grid-cols-[2fr_3fr] gap-4">
+      {/*
+        Fixed-width left column + flexible right column on lg+; stacked on
+        narrow viewports. `grid-cols-[420px_minmax(0,1fr)]` pins the event
+        list to a stable width so long JSON payloads on the right
+        (headers/body) can't push the list to reflow. `minmax(0,1fr)` is
+        the critical part: without the 0 floor, grid children inherit
+        `min-width: auto` (i.e. "wide enough to contain longest token"),
+        which makes the right pane fight for space whenever a header
+        value is long. `table-fixed` on the inner table forces declared
+        column widths instead of letting the browser size them to content.
+      */}
+      <div className="grid grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)] gap-4">
         <div className="bg-card text-card-foreground border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col className="w-[88px]" />
+              <col className="w-[64px]" />
+              <col />
+              <col className="w-[56px]" />
+            </colgroup>
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 <th className="text-left px-3 py-2 font-medium">Time</th>
@@ -60,10 +77,10 @@ export default function Audit() {
                   onClick={() => setSelected(e.id)}
                   className={`border-t border-border cursor-pointer hover:bg-muted/40 ${selected === e.id ? "bg-muted/60" : ""}`}
                 >
-                  <td className="px-3 py-1.5 text-muted-foreground mono text-xs">{new Date(e.timestamp).toLocaleTimeString()}</td>
-                  <td className="px-3 py-1.5 mono">{e.method}</td>
-                  <td className="px-3 py-1.5 mono truncate max-w-xs">{e.path}</td>
-                  <td className="px-3 py-1.5 text-right mono">
+                  <td className="px-3 py-1.5 text-muted-foreground mono text-xs whitespace-nowrap">{new Date(e.timestamp).toLocaleTimeString()}</td>
+                  <td className="px-3 py-1.5 mono whitespace-nowrap">{e.method}</td>
+                  <td className="px-3 py-1.5 mono truncate" title={e.path}>{e.path}</td>
+                  <td className="px-3 py-1.5 text-right mono whitespace-nowrap">
                     <span className={statusColor(e.status)}>{e.status}</span>
                   </td>
                 </tr>
@@ -74,7 +91,7 @@ export default function Audit() {
             </tbody>
           </table>
         </div>
-        <div>
+        <div className="min-w-0">
           {selected ? <EventDetail id={selected} /> : <div className="text-muted-foreground text-sm">Click a row to inspect the request.</div>}
         </div>
       </div>
@@ -88,12 +105,12 @@ function EventDetail({ id }: { id: string }) {
   if (q.error || !q.data) return <div className="text-destructive text-sm">Failed to load event.</div>;
   const e = q.data;
   return (
-    <div className="bg-card text-card-foreground border border-border rounded-lg p-4 space-y-3 text-sm">
-      <div className="flex items-baseline justify-between">
-        <div className="font-semibold mono">{e.method} {e.path}</div>
-        <span className={`mono ${statusColor(e.status)}`}>{e.status}</span>
+    <div className="bg-card text-card-foreground border border-border rounded-lg p-4 space-y-3 text-sm min-w-0">
+      <div className="flex items-baseline justify-between gap-3 min-w-0">
+        <div className="font-semibold mono truncate min-w-0" title={`${e.method} ${e.path}`}>{e.method} {e.path}</div>
+        <span className={`mono shrink-0 ${statusColor(e.status)}`}>{e.status}</span>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-2 text-xs min-w-0">
         <Field label="Timestamp" value={new Date(e.timestamp).toLocaleString()} />
         <Field label="Duration" value={`${e.duration_ms}ms`} />
         <Field label="Request ID" value={e.request_id || "-"} />
