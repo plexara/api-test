@@ -24,7 +24,10 @@ func (stubGroup) Mount(mux *http.ServeMux, mw endpoints.Middleware) {
 func TestBuildMux_RootBanner(t *testing.T) {
 	r := endpoints.NewRegistry()
 	r.Add(stubGroup{})
-	mux := BuildMux(r, NewReadiness(), nil, nil)
+	mux, err := BuildMux(r, NewReadiness(), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("BuildMux: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -43,7 +46,10 @@ func TestBuildMux_RootBanner(t *testing.T) {
 }
 
 func TestBuildMux_Healthz(t *testing.T) {
-	mux := BuildMux(endpoints.NewRegistry(), NewReadiness(), nil, nil)
+	mux, err := BuildMux(endpoints.NewRegistry(), NewReadiness(), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("BuildMux: %v", err)
+	}
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -55,7 +61,10 @@ func TestBuildMux_Healthz(t *testing.T) {
 func TestBuildMux_GroupMounted(t *testing.T) {
 	r := endpoints.NewRegistry()
 	r.Add(stubGroup{})
-	mux := BuildMux(r, NewReadiness(), nil, nil)
+	mux, err := BuildMux(r, NewReadiness(), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("BuildMux: %v", err)
+	}
 	req := httptest.NewRequest(http.MethodGet, "/v1/ping", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -65,7 +74,10 @@ func TestBuildMux_GroupMounted(t *testing.T) {
 }
 
 func TestBuildMux_404(t *testing.T) {
-	mux := BuildMux(endpoints.NewRegistry(), NewReadiness(), nil, nil)
+	mux, err := BuildMux(endpoints.NewRegistry(), NewReadiness(), nil, nil, nil)
+	if err != nil {
+		t.Fatalf("BuildMux: %v", err)
+	}
 	req := httptest.NewRequest(http.MethodGet, "/no-such-thing", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

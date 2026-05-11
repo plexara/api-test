@@ -33,6 +33,7 @@ import (
 	"github.com/plexara/api-test/pkg/endpoints/identity"
 	"github.com/plexara/api-test/pkg/httpmw"
 	"github.com/plexara/api-test/pkg/httpsrv"
+	"github.com/plexara/api-test/pkg/oapi"
 )
 
 // Application is the wired-up server, ready to be started with Run.
@@ -118,12 +119,36 @@ func Build(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Appli
 		return nil, fmt.Errorf("portal: %w", err)
 	}
 
-	core := httpsrv.BuildMux(app.registry, app.readiness, endpointMW, portalDeps)
+	oapiDoc := buildOpenAPI(cfg, app.registry)
+	if err := oapi.SelfCheck(oapiDoc, app.registry); err != nil {
+		return nil, fmt.Errorf("openapi self-check: %w", err)
+	}
+	core, err := httpsrv.BuildMux(app.registry, app.readiness, endpointMW, portalDeps, &oapiDoc)
+	if err != nil {
+		return nil, fmt.Errorf("build mux: %w", err)
+	}
 	// AccessLog + RequestID wrap the entire mux so health probes also get
 	// request ids; identity/audit only run on endpoint group routes (via
 	// endpointMW above).
 	app.mux = httpmw.RequestID(httpmw.AccessLog(logger)(core))
 	return app, nil
+}
+
+// buildOpenAPI assembles the served OpenAPI document from the loaded config
+// and the registered endpoint groups. The result is rendered once at boot
+// inside BuildMux.
+func buildOpenAPI(cfg *config.Config, registry *endpoints.Registry) oapi.Document {
+	opts := oapi.BuildOptions{
+		Info: oapi.Info{
+			Title:       cfg.Server.Name,
+			Version:     build.Version,
+			Description: cfg.Server.Description,
+		},
+		Servers:       []oapi.Server{{URL: cfg.Server.BaseURL}},
+		APIKeyHeader:  cfg.APIKeys.HeaderName,
+		BearerEnabled: len(cfg.Bearer.Tokens) > 0 || cfg.OIDC.Enabled,
+	}
+	return oapi.Build(registry, opts)
 }
 
 // buildPortal returns the portal handler bundle when cfg.Portal.Enabled is
@@ -206,7 +231,14 @@ func BuildWithDeps(cfg *config.Config, logger *slog.Logger, chain *inbound.Chain
 		return identityMW(auditMW(next))
 	}
 	readiness := httpsrv.NewReadiness()
-	core := httpsrv.BuildMux(registry, readiness, endpointMW, nil)
+	oapiDoc := buildOpenAPI(cfg, registry)
+	core, err := httpsrv.BuildMux(registry, readiness, endpointMW, nil, &oapiDoc)
+	if err != nil {
+		// BuildWithDeps is a test/dev convenience; surface the error via
+		// panic so tests fail loudly rather than silently dropping the
+		// OpenAPI surface.
+		panic(fmt.Sprintf("BuildWithDeps: build mux: %v", err))
+	}
 	mux := httpmw.RequestID(httpmw.AccessLog(logger)(core))
 	return &Application{
 		cfg:       cfg,
