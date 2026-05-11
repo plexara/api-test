@@ -17,11 +17,11 @@ Plexara MCP exposes two gateway capabilities:
 `api-test` is the upstream HTTP fixture the API gateway calls. Endpoints
 are deliberately simple and deterministic; their job is not to compute
 anything useful, it's to make the gateway's behavior observable. Every
-request will (M2+) be recorded in a Postgres-backed audit log so you can
+request will be recorded in a Postgres-backed audit log so you can
 compare what a client sent through Plexara, what reached this server, and
 what came back.
 
-## Endpoint groups (M1)
+## Endpoint groups
 
 - **identity** — `GET /v1/whoami`, `GET /v1/headers`. Verify the gateway
   forwards identity, args, and HTTP headers (with redaction).
@@ -61,7 +61,7 @@ make test               # alias: go test -race -count=1 ./...
 make verify             # CI-equivalent: fmt, vet, test, lint, security, coverage gate
 ```
 
-Integration tests requiring testcontainers Postgres land in M2.
+Integration tests requiring testcontainers Postgres land in.
 
 ## Layout
 

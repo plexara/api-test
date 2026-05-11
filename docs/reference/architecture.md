@@ -32,8 +32,8 @@ flowchart TB
             Echo_g["echo"]
         end
         Health["healthz / readyz"]
-        Portal["/portal/ (M3+)"]
-        OpenAPI["/openapi.json (M4+)"]
+        Portal["/portal/"]
+        OpenAPI["/openapi.json"]
         SPA["embedded SPA<br/>(go:embed all:dist)"]
     end
 
@@ -103,7 +103,7 @@ flowchart LR
     APIKey -->|match| Identity["Identity attached"]
     APIKey -->|no credential| Bearer["BearerAuthenticator"]
     Bearer -->|match| Identity
-    Bearer -->|no credential| OIDC["OIDCAuthenticator (M3+)"]
+    Bearer -->|no credential| OIDC["OIDCAuthenticator"]
     OIDC -->|match| Identity
     OIDC -->|no credential & allow_anonymous| Anon["Anonymous Identity"]
     OIDC -->|no credential & not anonymous| Reject["401"]

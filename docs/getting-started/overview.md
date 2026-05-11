@@ -39,10 +39,10 @@ behind that connection — the thing the gateway actually talks to.
 - **Audit log**: every inbound request lands in Postgres with sanitized
   headers and bodies, the resolved identity, the response status and
   size, and the duration.
-- **Portal** (M3): React 19 SPA embedded in the binary; Dashboard,
+- **Portal**: React 19 SPA embedded in the binary; Dashboard,
   Endpoints with Try-It, Audit, API Keys, Config, Discovery (Redoc/Swagger
   UI over `/openapi.json`).
-- **OpenAPI document** (M4) at `/openapi.{json,yaml}`, generated in-tree
+- **OpenAPI document** at `/openapi.{json,yaml}`, generated in-tree
   from the registered endpoint metadata so it can't drift from the
   served routes.
 - **Operational ergonomics**: `--healthcheck` self-probe, graceful
@@ -82,6 +82,6 @@ use mcp-test to validate MCP-gateway behavior.
   container image.
 - [Quickstart](quickstart.md) — `make dev` runs the binary in
   anonymous mode today; the full Postgres + Keycloak + portal stack
-  lands with M3.
+  lands with.
 - [Register with Plexara](register-with-plexara.md) — wire api-test in
   as a connection.

@@ -67,7 +67,7 @@ Response (200):
 Bounds:
 
 - `0 <= bytes <= 32 MiB` (32×1024×1024). Larger sizes belong on the
-  export endpoint group (M4+), which streams to the asset store
+  export endpoint group, which streams to the asset store
   instead of allocating in memory.
 - `bytes < 0` or non-integer → 400.
 

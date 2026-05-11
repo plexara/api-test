@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+// ReplayHeaderName is the header attached to replayed requests so the
+// audit middleware can populate Payload.ReplayedFrom on the new event
+// row. Lives in this package so both the portal handler that sets it
+// and the middleware that reads it share one source of truth.
+const ReplayHeaderName = "X-Plexara-Replay-From"
+
 // Event is the indexable summary written to audit_events.
 type Event struct {
 	ID            string    `json:"id"`

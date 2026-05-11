@@ -23,10 +23,8 @@ endpoints:
   data:       { enabled: true }
   failure:    { enabled: true }
   echo:       { enabled: true }
-  # The groups below land in M3/M4; toggles are accepted now but the
-  # underlying groups aren't registered until those milestones.
-  streaming:  { enabled: false }
-  pagination: { enabled: false }
-  methods:    { enabled: false }
-  security:   { enabled: false }
-  export:     { enabled: false }
+  streaming:  { enabled: true }
+  pagination: { enabled: true }
+  methods:    { enabled: true }
+  security:   { enabled: true }
+  export:     { enabled: true }

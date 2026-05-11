@@ -7,6 +7,7 @@ import (
 
 	"github.com/plexara/api-test/pkg/config"
 	"github.com/plexara/api-test/pkg/endpoints"
+	"github.com/plexara/api-test/pkg/oapi"
 )
 
 // PortalDeps bundles everything needed to mount the portal under /portal/
@@ -22,11 +23,21 @@ type PortalDeps struct {
 // BuildMux assembles the HTTP mux:
 //   - /healthz, /readyz
 //   - /v1/* endpoint groups (with the supplied middleware)
+//   - /openapi.json, /openapi.yaml when oapiDoc != nil
 //   - /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server
 //   - /portal/, /portal/api/*, /portal/auth/{login,callback,logout} when portal != nil
 //   - / — root handler returning a JSON banner (or a redirect to the portal
 //     when the request looks like a browser GET)
-func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.Middleware, portal *PortalDeps) http.Handler {
+//
+// Returns an error only when oapiDoc rendering fails; callers that pass
+// nil get a nil error.
+func BuildMux(
+	registry *endpoints.Registry,
+	readiness *Readiness,
+	mw endpoints.Middleware,
+	portal *PortalDeps,
+	oapiDoc *oapi.Document,
+) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", HealthzHandler())
@@ -36,6 +47,12 @@ func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.M
 		mw = endpoints.PassthroughMiddleware
 	}
 	registry.Mount(mux, mw)
+
+	if oapiDoc != nil {
+		if err := mountOpenAPI(mux, *oapiDoc); err != nil {
+			return nil, err
+		}
+	}
 
 	if portal != nil {
 		mux.HandleFunc("GET /.well-known/oauth-protected-resource", ProtectedResourceMetadata(portal.Cfg))
@@ -58,7 +75,7 @@ func BuildMux(registry *endpoints.Registry, readiness *Readiness, mw endpoints.M
 		// banner but a browser visit lands on the SPA.
 		handler = BrowserRedirect("/portal/", handler)
 	}
-	return CORS(handler)
+	return CORS(handler), nil
 }
 
 // spaOrStub serves the SPA when spaFS is non-nil; otherwise emits a small
@@ -93,8 +110,11 @@ func rootHandler(registry *endpoints.Registry, portalEnabled bool) http.HandlerF
 			groups = append(groups, g.Name())
 		}
 		links := map[string]string{
-			"healthz": "/healthz",
-			"readyz":  "/readyz",
+			"healthz":      "/healthz",
+			"readyz":       "/readyz",
+			"openapi_json": "/openapi.json",
+			"openapi_yaml": "/openapi.yaml",
+			"docs":         "/docs",
 		}
 		if portalEnabled {
 			links["portal"] = "/portal/"

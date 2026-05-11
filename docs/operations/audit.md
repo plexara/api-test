@@ -73,7 +73,7 @@ The detail row. Same shape as `Event.Payload` in Go.
 | `response_body` | BYTEA | Same cap rules as request side. |
 | `response_size_bytes` | INTEGER | Captured prefix size. |
 | `response_truncated` | BOOLEAN | True when the outbound body exceeded the cap. |
-| `replayed_from` | TEXT | When this event was a replay of another, points back. M3+. |
+| `replayed_from` | TEXT | When this event was a replay of another, points back. |
 | `captured_at` | TIMESTAMPTZ | Insert time of the payload row. |
 
 Indexes: `(replayed_from)` partial, GIN on `request_headers` and
@@ -142,7 +142,7 @@ offset. The Postgres store builds a parameterized SQL `SELECT ... FROM
 audit_events WHERE … ORDER BY ts DESC, id ASC LIMIT … OFFSET …` from
 the filter.
 
-The portal API (M3+) wraps these filters in HTTP query params and
+The portal API wraps these filters in HTTP query params and
 returns paginated JSON. Direct SQL is also fine; the schema is
 documented above and Postgres is the source of truth.
 

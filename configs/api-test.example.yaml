@@ -71,11 +71,11 @@ endpoints:
   data:       { enabled: true }
   failure:    { enabled: true }
   echo:       { enabled: true }
-  streaming:  { enabled: true }   # M3+
-  pagination: { enabled: true }   # M4+
-  methods:    { enabled: true }   # M4+
-  security:   { enabled: true }   # M4+
-  export:     { enabled: true }   # M4+
+  streaming:  { enabled: true }
+  pagination: { enabled: true }
+  methods:    { enabled: true }
+  security:   { enabled: true }
+  export:     { enabled: true }
 
 # Optional: POST a connection definition to a Plexara admin URL on boot
 # so api-test self-registers in dev. Default off; keep fixture decoupled.

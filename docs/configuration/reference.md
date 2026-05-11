@@ -60,7 +60,7 @@ Static bearer-token authentication for `auth_mode: bearer` connections.
 
 External OIDC IdP for JWT validation (`oauth2_client_credentials` and
 `oauth2_authorization_code` Plexara connections; also the portal browser
-login). Lands in M3 alongside Keycloak.
+login)..
 
 | Key | Default | Description |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ Default `redact_keys`:
 
 ## `portal`
 
-The embedded React SPA + portal API. Lands in M3.
+The embedded React SPA + portal API..
 
 | Key | Default | Description |
 | --- | --- | --- |
@@ -135,17 +135,17 @@ The embedded React SPA + portal API. Lands in M3.
 Per-group toggles. Disabling a group removes its routes from the mux
 and from the published OpenAPI doc.
 
-| Key | Default | Status |
-| --- | --- | --- |
-| `identity.enabled` | `false` | M1 |
-| `data.enabled` | `false` | M1 |
-| `failure.enabled` | `false` | M1 |
-| `echo.enabled` | `false` | M1 |
-| `streaming.enabled` | `false` | M3+ |
-| `pagination.enabled` | `false` | M4+ |
-| `methods.enabled` | `false` | M4+ |
-| `security.enabled` | `false` | M4+ |
-| `export.enabled` | `false` | M4+ |
+| Key | Default |
+| --- | --- |
+| `identity.enabled` | `false` |
+| `data.enabled` | `false` |
+| `failure.enabled` | `false` |
+| `echo.enabled` | `false` |
+| `streaming.enabled` | `false` |
+| `pagination.enabled` | `false` |
+| `methods.enabled` | `false` |
+| `security.enabled` | `false` |
+| `export.enabled` | `false` |
 
 ## `plexara.register`
 

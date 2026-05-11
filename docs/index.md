@@ -99,8 +99,7 @@ about gateway behavior without running fragile real-data fixtures.
 ## Where to next
 
 - New here? [Quickstart](getting-started/quickstart.md) gets you the
-  binary running in under a minute (anonymous mode today; the full
-  Postgres + Keycloak + portal stack lands with M3).
+  binary running in under a minute.
 - Configuring a deployment? [YAML reference](configuration/reference.md)
   documents every key with its default and environment override.
 - Wiring api-test into Plexara? [Register with Plexara](getting-started/register-with-plexara.md)

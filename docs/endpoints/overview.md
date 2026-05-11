@@ -27,17 +27,17 @@ call, the body it got back is bit-for-bit predictable.
 
 ## Groups
 
-| Group | Status | Purpose |
-| --- | --- | --- |
-| [Identity](identity.md) | M1 | Verify identity / header pass-through. |
-| [Data](data.md) | M1 | Deterministic bodies for caching / dedup / size handling. |
-| [Failure](failure.md) | M1 | Controlled error codes, latency, seeded flake. |
-| [Echo](echo.md) | M1 | Generic catch-all that returns the request verbatim. |
-| Streaming | M3+ | Chunked, SSE, NDJSON responses. |
-| Pagination | M4+ | One endpoint per cursor style the gateway recognizes. |
-| Methods | M4+ | Method matrix on `/v1/method/echo`. |
-| Security | M4+ | Probe targets the gateway should refuse to forward. |
-| Export | M4+ | Large/long-running targets exercising `api_export`. |
+| Group | Purpose |
+| --- | --- |
+| [Identity](identity.md) | Verify identity / header pass-through. |
+| [Data](data.md) | Deterministic bodies for caching / dedup / size handling. |
+| [Failure](failure.md) | Controlled error codes, latency, seeded flake. |
+| [Echo](echo.md) | Generic catch-all that returns the request verbatim. |
+| Streaming | Chunked, SSE, NDJSON responses. |
+| Pagination | One endpoint per cursor style the gateway recognizes. |
+| Methods | Method matrix on `/v1/method/echo`. |
+| Security | Probe targets the gateway should refuse to forward. |
+| Export | Large/long-running targets exercising `api_export`. |
 
 ## Toggling groups
 
@@ -60,7 +60,7 @@ chaos testing) and one with only `data` (for stable cache fixtures).
 ## OpenAPI exposure
 
 Every enabled route is published in `/openapi.json` and `/openapi.yaml`
-(M4+). The Plexara gateway's `api_list_endpoints` tool reads this
+. The Plexara gateway's `api_list_endpoints` tool reads this
 document, so registering api-test with its OpenAPI spec inline gives
 gateway callers a discoverable catalog.
 

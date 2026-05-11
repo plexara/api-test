@@ -76,6 +76,11 @@ nav:
       - Data: endpoints/data.md
       - Failure Modes: endpoints/failure.md
       - Echo: endpoints/echo.md
+      - Streaming: endpoints/streaming.md
+      - Pagination: endpoints/pagination.md
+      - Methods: endpoints/methods.md
+      - Security: endpoints/security.md
+      - Export: endpoints/export.md
   - Operations:
       - Audit Log: operations/audit.md
       - Portal: operations/portal.md

@@ -79,7 +79,7 @@ doesn't need curl/wget.
 
 api-test wants Postgres for the audit log. The
 [quickstart](quickstart.md) runs the binary in anonymous mode (no
-Postgres needed) today; the full Postgres + Keycloak + portal stack
-lands with M3. To deploy on your own infrastructure once auditing is
-on, point `database.url` at a Postgres 14+ instance; migrations run
-on boot.
+Postgres needed); the full Postgres + Keycloak + portal stack is
+available via `make dev`. To deploy on your own infrastructure with
+auditing on, point `database.url` at a Postgres 14+ instance;
+migrations run on boot.

@@ -56,8 +56,8 @@ endpoints:
   data:       { enabled: true }
   failure:    { enabled: true }
   echo:       { enabled: true }
-  streaming:  { enabled: false }
-  pagination: { enabled: false }
-  methods:    { enabled: false }
-  security:   { enabled: false }
-  export:     { enabled: false }
+  streaming:  { enabled: true }
+  pagination: { enabled: true }
+  methods:    { enabled: true }
+  security:   { enabled: true }
+  export:     { enabled: true }
