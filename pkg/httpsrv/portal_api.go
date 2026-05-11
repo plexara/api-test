@@ -64,6 +64,8 @@ func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler
 	mux.Handle("GET /api/v1/portal/audit/timeseries", mw(http.HandlerFunc(p.auditTimeseries)))
 	mux.Handle("GET /api/v1/portal/audit/breakdown", mw(http.HandlerFunc(p.auditBreakdown)))
 	mux.Handle("GET /api/v1/portal/audit/stats", mw(http.HandlerFunc(p.auditStats)))
+	mux.Handle("GET /api/v1/portal/audit/stream", mw(http.HandlerFunc(p.auditStream)))
+	mux.Handle("GET /api/v1/portal/audit/export.ndjson", mw(http.HandlerFunc(p.auditExportNDJSON)))
 
 	mux.Handle("GET /api/v1/admin/keys", mw(http.HandlerFunc(p.listKeys)))
 	mux.Handle("POST /api/v1/admin/keys", wrap(http.HandlerFunc(p.createKey)))
@@ -116,8 +118,8 @@ func (p *PortalAPI) auditMeta(w http.ResponseWriter, _ *http.Request) {
 			"timeseries": true,
 			"breakdown":  true,
 			"stats":      true,
-			"stream":     false,
-			"export":     false,
+			"stream":     true,
+			"export":     true,
 			"replay":     false,
 		},
 	})
