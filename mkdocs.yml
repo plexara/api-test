@@ -77,6 +77,7 @@ nav:
       - Failure Modes: endpoints/failure.md
       - Echo: endpoints/echo.md
       - Streaming: endpoints/streaming.md
+      - Pagination: endpoints/pagination.md
   - Operations:
       - Audit Log: operations/audit.md
       - Portal: operations/portal.md
