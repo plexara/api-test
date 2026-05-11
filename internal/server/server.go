@@ -33,6 +33,7 @@ import (
 	"github.com/plexara/api-test/pkg/endpoints/identity"
 	"github.com/plexara/api-test/pkg/endpoints/methods"
 	"github.com/plexara/api-test/pkg/endpoints/pagination"
+	"github.com/plexara/api-test/pkg/endpoints/security"
 	"github.com/plexara/api-test/pkg/endpoints/streaming"
 	"github.com/plexara/api-test/pkg/httpmw"
 	"github.com/plexara/api-test/pkg/httpsrv"
@@ -277,6 +278,9 @@ func buildRegistry(cfg *config.Config) *endpoints.Registry {
 	}
 	if cfg.Endpoints.Methods.Enabled {
 		r.Add(methods.New())
+	}
+	if cfg.Endpoints.Security.Enabled {
+		r.Add(security.New())
 	}
 	return r
 }

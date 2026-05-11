@@ -26,7 +26,7 @@ endpoints:
   streaming:  { enabled: true }
   pagination: { enabled: true }
   methods:    { enabled: true }
+  security:   { enabled: true }
   # The groups below ship later; toggles are accepted now but the
   # underlying groups aren't registered until they're implemented.
-  security:   { enabled: false }
   export:     { enabled: false }
