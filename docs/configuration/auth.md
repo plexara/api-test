@@ -13,7 +13,7 @@ gateway forwards from its caller. The chain is:
    if enabled, the bcrypt-hashed Postgres store.
 2. **Static bearer** — `Authorization: Bearer <token>` matched against
    the `bearer.tokens` static list.
-3. **OIDC JWT** (M3+) — `Authorization: Bearer <jwt>` validated against
+3. **OIDC JWT** — `Authorization: Bearer <jwt>` validated against
    the configured IdP's JWKS.
 4. **Anonymous fallback** — when `auth.allow_anonymous: true` and no
    credential matched, requests proceed with an anonymous identity.
@@ -59,7 +59,7 @@ database:
 ```
 
 The bcrypt store layers under the file store: file keys win, DB keys
-are consulted on miss. To create a key, use the portal (M3+) or call
+are consulted on miss. To create a key, use the portal or call
 the admin API directly:
 
 ```bash
@@ -87,7 +87,7 @@ bearer:
 Used when a Plexara connection is configured with `auth_mode: bearer`
 and `credential: <token>`.
 
-## OIDC JWT (M3+)
+## OIDC JWT
 
 When the Plexara gateway uses `oauth2_client_credentials` or
 `oauth2_authorization_code`, it exchanges with the IdP and forwards the
@@ -112,7 +112,7 @@ JWKS is cached in-process for `jwks_cache_ttl`. Validation checks:
 - `azp` (or `client_id` claim, depending on IdP) is in `allowed_clients`.
 - `exp` and `nbf` allow a `clock_skew_seconds` tolerance.
 
-The Keycloak realm `dev/keycloak/api-test-realm.json` (M3) pre-seeds
+The Keycloak realm `dev/keycloak/api-test-realm.json` pre-seeds
 two confidential clients (`plexara-cc` for client-credentials,
 `plexara-ac` for auth-code) and a portal user (`dev` / `dev`).
 
@@ -153,7 +153,7 @@ safe to run with anonymous + a few static keys: clients that send a
 valid key get their identity, clients that send nothing get anonymous,
 clients that send a bad key get 401.
 
-## Portal browser login (M3+)
+## Portal browser login
 
 The portal uses a standard OIDC PKCE flow: hit `/portal/`, redirect to
 the IdP, callback at `portal.oidc_redirect_path`, set a session cookie.

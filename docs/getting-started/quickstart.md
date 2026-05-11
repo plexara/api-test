@@ -13,14 +13,14 @@ make dev
 
 Today, `make dev` is aliased to `make dev-anon` and runs the binary
 against `configs/api-test.dev.yaml` (anonymous, no Postgres, no
-Keycloak). That's the M1+M2 happy path; everything below the
+Keycloak). That's the happy path; everything below the
 `/healthz` row in the table works.
 
 ```text
 make dev   →   go run ./cmd/api-test --config configs/api-test.dev.yaml
 ```
 
-The full Postgres + Keycloak + portal stack lands with M3. Once shipped,
+The full Postgres + Keycloak + portal stack lands with. Once shipped,
 `make dev` will spin up the compose stack
 (`docker-compose.dev.yml`), poll containers, build the SPA into
 `internal/ui/dist`, and run the binary against
@@ -44,12 +44,12 @@ When it's up (today, anonymous mode):
 
 <div class="def-card" markdown>
 <div class="def-card__head"><code class="def-card__name">http://localhost:8080/portal/</code></div>
-<div class="def-card__body" markdown>Portal (M3+). Sign in with `dev` / `dev` (OIDC) or paste an API key.</div>
+<div class="def-card__body" markdown>Portal. Sign in with `dev` / `dev` (OIDC) or paste an API key.</div>
 </div>
 
 <div class="def-card" markdown>
 <div class="def-card__head"><code class="def-card__name">http://localhost:8081/</code></div>
-<div class="def-card__body" markdown>Keycloak admin console (M3+, `admin` / `admin`).</div>
+<div class="def-card__body" markdown>Keycloak admin console (`admin` / `admin`).</div>
 </div>
 
 </div>

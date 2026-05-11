@@ -39,7 +39,7 @@ first run. Subsequent runs reuse the file so sessions persist.
 
 `source ./.env.dev` to load them into the current shell.
 
-## OIDC (M3+)
+## OIDC
 
 | Variable | Used in | Description |
 | --- | --- | --- |

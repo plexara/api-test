@@ -147,7 +147,7 @@ Then check Plexara's own audit log for the same call. The credential
 should be `[redacted]` there too. If it's plaintext on either side,
 the redaction policy isn't covering that key.
 
-## Pagination detection (M4+)
+## Pagination detection
 
 **Question**: did the gateway recognize the upstream's pagination
 cursor?

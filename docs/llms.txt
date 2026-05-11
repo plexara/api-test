@@ -8,7 +8,7 @@ The server itself is small and predictable on purpose; the value is the surface 
 
 - [Overview](https://api-test.plexara.io/getting-started/overview/): What api-test is, who should use it, and why a separate test fixture matters.
 - [Installation](https://api-test.plexara.io/getting-started/installation/): Binary download, container image (GHCR), `go install`, building from source.
-- [Quickstart](https://api-test.plexara.io/getting-started/quickstart/): `make dev` runs the binary in anonymous mode today; the full Postgres + Keycloak + portal stack lands with M3.
+- [Quickstart](https://api-test.plexara.io/getting-started/quickstart/): `make dev` runs the binary in anonymous mode; the full Postgres + Keycloak + portal stack is also available via `make dev`.
 - [Register with Plexara](https://api-test.plexara.io/getting-started/register-with-plexara/): Wiring api-test in as a connection in a running Plexara API gateway, with one example per supported auth mode.
 
 ## Configuration

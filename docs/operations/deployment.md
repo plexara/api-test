@@ -120,7 +120,7 @@ Structured JSON via slog, written to stderr. Override the level via
 
 ## Metrics
 
-Prometheus metrics endpoint lands in M5. Until then, derive metrics
+Prometheus metrics endpoint lands in. Until then, derive metrics
 from the structured access log or query the audit table:
 
 ```sql

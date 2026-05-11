@@ -20,7 +20,7 @@ GET /readyz        → 200 "ready"   (normally)
 Both return plain text. Useful for K8s probes, load-balancer health
 checks, and the binary's own `--healthcheck` flag.
 
-## OpenAPI document (M4+)
+## OpenAPI document
 
 ```http
 GET /openapi.json
@@ -32,7 +32,7 @@ Generated in-tree from the same metadata the portal uses, so it can't
 drift from the served routes. A boot-time self-check fails startup if
 a route is mounted without a doc entry (or vice versa).
 
-## Discovery (M3+)
+## Discovery
 
 ```http
 GET /docs
@@ -41,7 +41,7 @@ GET /docs
 Renders a Redoc / Swagger UI view of `/openapi.json` for human
 inspection. The portal's Discovery page iframes this.
 
-## Well-known metadata (M3+)
+## Well-known metadata
 
 ```http
 GET /.well-known/oauth-protected-resource
@@ -52,7 +52,7 @@ RFC 9728 protected-resource metadata advertises which OIDC issuer
 api-test accepts tokens from, so OAuth2-aware clients can discover
 the IdP without out-of-band config.
 
-## Portal API (M3+)
+## Portal API
 
 Read-only endpoints under `/api/v1/portal/`. All require an authenticated
 operator session (browser cookie or `X-API-Key`).
@@ -76,7 +76,7 @@ The audit query filters mirror Go's `audit.QueryFilter` — `from`,
 `to`, `method`, `path`, `route_name`, `user_subject`, `session_id`,
 `status`, `success` — and every list endpoint paginates uniformly.
 
-## Admin API (M3+)
+## Admin API
 
 Mutation endpoints under `/api/v1/admin/`. Same auth requirements as
 the portal API; intended for portal use plus operator scripts.
@@ -87,7 +87,7 @@ the portal API; intended for portal use plus operator scripts.
 | `POST   /api/v1/admin/api-keys` | Mint a new key; response carries the plaintext **once**. |
 | `DELETE /api/v1/admin/api-keys/{name}` | Revoke a key. |
 
-## Browser auth (M3+, when `portal.enabled` and `oidc.enabled`)
+## Browser auth (when `portal.enabled` and `oidc.enabled`)
 
 | Method + path | Effect |
 | --- | --- |
@@ -95,7 +95,7 @@ the portal API; intended for portal use plus operator scripts.
 | `GET  /portal/auth/callback` | OIDC callback; sets the session cookie; 302 to `/portal/`. |
 | `POST /portal/auth/logout` | Clear the cookie; 302 to `/portal/`. |
 
-## SPA (M3+)
+## SPA
 
 ```http
 GET /portal/                 → SPA index.html

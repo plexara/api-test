@@ -105,4 +105,4 @@ curl -s -I http://localhost:8080/v1/echo -H "X-API-Key: $KEY"
 The handler reads up to 1 MiB of inbound body. Larger bodies are
 truncated; `body_size` reports the captured prefix length. For
 testing the gateway's handling of >1 MiB bodies, use the export
-endpoint group (M4+).
+endpoint group.
