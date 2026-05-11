@@ -107,6 +107,11 @@ func Audit(logger audit.Logger, registry *endpoints.Registry, slogger *slog.Logg
 					ResponseTruncated:   rec.truncated,
 					ResponseContentType: rec.Header().Get("Content-Type"),
 					ResponseBody:        rec.body.Bytes(),
+					// If this request came in through the portal's
+					// /audit/replay handler, the replay marker
+					// header carries the original event's ID.
+					// Recording it links the replay to its source.
+					ReplayedFrom: r.Header.Get(audit.ReplayHeaderName),
 				}
 				if opts.CaptureHeaders {
 					p.RequestHeaders = audit.SanitizeHeaders(r.Header, opts.RedactKeys)

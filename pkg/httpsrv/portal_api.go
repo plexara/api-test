@@ -29,10 +29,11 @@ import (
 // CSRF header check on top of auth so a forged <form> POST cannot reach
 // them via SameSite=Lax cookies alone.
 type PortalAPI struct {
-	cfg      *config.Config
-	registry *endpoints.Registry
-	audit    audit.Logger
-	keys     *apikeys.Store // nil if config.APIKeys.DB.Enabled=false
+	cfg          *config.Config
+	registry     *endpoints.Registry
+	audit        audit.Logger
+	keys         *apikeys.Store // nil if config.APIKeys.DB.Enabled=false
+	replayTarget http.Handler   // nil disables /audit/replay
 }
 
 // NewPortalAPI returns the API. keys may be nil when the DB-backed key store
@@ -46,8 +47,29 @@ func NewPortalAPI(
 	return &PortalAPI{cfg: cfg, registry: registry, audit: auditLog, keys: keys}
 }
 
+// WithReplayTarget enables the audit replay endpoint, dispatching
+// re-issued requests through h. h is the mux *before* the wrapping
+// access-log / request-id / browser-redirect / CORS layers — that
+// way replays go straight to the audit middleware and the registered
+// routes without recursing through the portal API itself. Returns
+// the receiver so the composition can chain.
+func (p *PortalAPI) WithReplayTarget(h http.Handler) *PortalAPI {
+	p.replayTarget = h
+	return p
+}
+
 // Mount adds every endpoint behind the supplied auth middleware.
+//
+// As a side effect, the supplied mux becomes the default replay target
+// for /audit/replay if WithReplayTarget hasn't already been called. The
+// mux at the time replay is invoked has every /v1/* route mounted on
+// it (BuildMux mounts those before calling PortalAPI.Mount), so the
+// replay dispatches into the audit-wrapped endpoint handlers and the
+// replay shows up as a new audit row.
 func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler) {
+	if p.replayTarget == nil {
+		p.replayTarget = mux
+	}
 	wrap := func(h http.Handler) http.Handler { return mw(requireCSRFHeader(h)) }
 
 	mux.Handle("GET /api/v1/portal/me", mw(http.HandlerFunc(p.me)))
@@ -66,6 +88,7 @@ func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler
 	mux.Handle("GET /api/v1/portal/audit/stats", mw(http.HandlerFunc(p.auditStats)))
 	mux.Handle("GET /api/v1/portal/audit/stream", mw(http.HandlerFunc(p.auditStream)))
 	mux.Handle("GET /api/v1/portal/audit/export.ndjson", mw(http.HandlerFunc(p.auditExportNDJSON)))
+	mux.Handle("POST /api/v1/portal/audit/replay/{id}", wrap(http.HandlerFunc(p.auditReplay)))
 
 	mux.Handle("GET /api/v1/admin/keys", mw(http.HandlerFunc(p.listKeys)))
 	mux.Handle("POST /api/v1/admin/keys", wrap(http.HandlerFunc(p.createKey)))
@@ -112,6 +135,12 @@ func (p *PortalAPI) endpointDetail(w http.ResponseWriter, r *http.Request) {
 // editor uses. The features map tells the SPA which optional panels to
 // enable; the SPA disables matching panels when a flag is false.
 func (p *PortalAPI) auditMeta(w http.ResponseWriter, _ *http.Request) {
+	// Replay needs three things: a wired target handler, an audit
+	// Logger that persists payloads, and (in practice) capture being
+	// enabled at the time the original event was recorded. We can
+	// check the first two here; the third is a runtime property the
+	// handler surfaces as 404. SPA can only check the static flag.
+	_, payloadCapable := p.audit.(audit.PayloadLogger)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"filters": []string{"from", "to", "method", "path", "route_name", "status", "user", "session", "success", "q"},
 		"features": map[string]bool{
@@ -120,7 +149,7 @@ func (p *PortalAPI) auditMeta(w http.ResponseWriter, _ *http.Request) {
 			"stats":      true,
 			"stream":     true,
 			"export":     true,
-			"replay":     false,
+			"replay":     p.replayTarget != nil && payloadCapable,
 		},
 	})
 }
