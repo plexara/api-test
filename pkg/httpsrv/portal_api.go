@@ -61,6 +61,9 @@ func (p *PortalAPI) Mount(mux *http.ServeMux, mw func(http.Handler) http.Handler
 	mux.Handle("GET /api/v1/portal/audit/meta", mw(http.HandlerFunc(p.auditMeta)))
 	mux.Handle("GET /api/v1/portal/audit/events", mw(http.HandlerFunc(p.auditEvents)))
 	mux.Handle("GET /api/v1/portal/audit/events/{id}", mw(http.HandlerFunc(p.auditEventDetail)))
+	mux.Handle("GET /api/v1/portal/audit/timeseries", mw(http.HandlerFunc(p.auditTimeseries)))
+	mux.Handle("GET /api/v1/portal/audit/breakdown", mw(http.HandlerFunc(p.auditBreakdown)))
+	mux.Handle("GET /api/v1/portal/audit/stats", mw(http.HandlerFunc(p.auditStats)))
 
 	mux.Handle("GET /api/v1/admin/keys", mw(http.HandlerFunc(p.listKeys)))
 	mux.Handle("POST /api/v1/admin/keys", wrap(http.HandlerFunc(p.createKey)))
@@ -104,15 +107,15 @@ func (p *PortalAPI) endpointDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 // auditMeta exposes the filter contract surface the SPA's audit filter
-// editor uses. Dashboard timeseries / breakdown / SSE / export / replay
-// are M3+ features; the SPA detects their absence via the `features` map
-// and disables matching panels.
+// editor uses. The features map tells the SPA which optional panels to
+// enable; the SPA disables matching panels when a flag is false.
 func (p *PortalAPI) auditMeta(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"filters": []string{"from", "to", "method", "path", "route_name", "status", "user", "session", "success", "q"},
 		"features": map[string]bool{
-			"timeseries": false,
-			"breakdown":  false,
+			"timeseries": true,
+			"breakdown":  true,
+			"stats":      true,
 			"stream":     false,
 			"export":     false,
 			"replay":     false,
