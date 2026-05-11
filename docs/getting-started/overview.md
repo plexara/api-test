@@ -40,8 +40,9 @@ behind that connection — the thing the gateway actually talks to.
   headers and bodies, the resolved identity, the response status and
   size, and the duration.
 - **Portal**: React 19 SPA embedded in the binary; Dashboard,
-  Endpoints with Try-It, Audit, API Keys, Config, Discovery (Redoc/Swagger
-  UI over `/openapi.json`).
+  Endpoints with Try-It, Audit, API Keys, Config, Discovery (native
+  OpenAPI 3.1 reference rendered from `/openapi.json`, with `/docs`
+  Redoc available as a sibling).
 - **OpenAPI document** at `/openapi.{json,yaml}`, generated in-tree
   from the registered endpoint metadata so it can't drift from the
   served routes.

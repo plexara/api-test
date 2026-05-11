@@ -68,6 +68,21 @@ const PAGES = [
       await page.waitForTimeout(400);
     } },
 
+  // discovery: native OpenAPI 3.1 reference rendered from /openapi.json.
+  // Capture an expanded operation so the screenshot communicates what the
+  // page actually does (parameter tables, response schema, examples) and
+  // not just the closed-card list.
+  { slug: "discovery",
+    path: "/portal/discovery",
+    requiresAuth: true,
+    prep: async (page) => {
+      await page.waitForSelector('section button code', { timeout: 5000 });
+      // Click the first operation card so its parameter/response/schema
+      // detail expands.
+      await page.locator('section button').first().click();
+      await page.waitForTimeout(400);
+    } },
+
   // audit-detail: click the first row so the right-pane EventDetail card
   // (timestamp, duration, request_id, auth, user, remote, bytes, plus
   // request/response headers / query / body trees) is rendered.

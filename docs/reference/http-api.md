@@ -39,7 +39,10 @@ GET /docs
 ```
 
 Renders a Redoc / Swagger UI view of `/openapi.json` for human
-inspection. The portal's Discovery page iframes this.
+inspection. The portal's Discovery page renders its own native
+reference against the same `/openapi.json` document (for full
+light/dark parity with the portal); `/docs` is still served as the
+canonical Redoc view and is linked from the portal header.
 
 ## Well-known metadata
 
