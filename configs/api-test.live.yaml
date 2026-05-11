@@ -60,4 +60,4 @@ endpoints:
   pagination: { enabled: true }
   methods:    { enabled: true }
   security:   { enabled: true }
-  export:     { enabled: false }
+  export:     { enabled: true }

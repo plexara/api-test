@@ -80,6 +80,7 @@ nav:
       - Pagination: endpoints/pagination.md
       - Methods: endpoints/methods.md
       - Security: endpoints/security.md
+      - Export: endpoints/export.md
   - Operations:
       - Audit Log: operations/audit.md
       - Portal: operations/portal.md

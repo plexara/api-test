@@ -29,6 +29,7 @@ import (
 	"github.com/plexara/api-test/pkg/endpoints"
 	"github.com/plexara/api-test/pkg/endpoints/data"
 	"github.com/plexara/api-test/pkg/endpoints/echo"
+	"github.com/plexara/api-test/pkg/endpoints/export"
 	"github.com/plexara/api-test/pkg/endpoints/failure"
 	"github.com/plexara/api-test/pkg/endpoints/identity"
 	"github.com/plexara/api-test/pkg/endpoints/methods"
@@ -281,6 +282,9 @@ func buildRegistry(cfg *config.Config) *endpoints.Registry {
 	}
 	if cfg.Endpoints.Security.Enabled {
 		r.Add(security.New())
+	}
+	if cfg.Endpoints.Export.Enabled {
+		r.Add(export.New())
 	}
 	return r
 }
