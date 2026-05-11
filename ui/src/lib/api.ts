@@ -145,7 +145,7 @@ export type AuditPayload = {
 
 export type AuditMeta = {
   filters: string[];
-  features: { timeseries: boolean; breakdown: boolean; stream: boolean; export: boolean; replay: boolean };
+  features: { timeseries: boolean; breakdown: boolean; stats: boolean; stream: boolean; export: boolean; replay: boolean };
 };
 
 export type TryItRequest = {
