@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/plexara/api-test/pkg/audit"
+	"github.com/plexara/api-test/pkg/auth"
+	"github.com/plexara/api-test/pkg/auth/inbound"
 )
 
 // replayHeaderMarker is the header attached to every replayed request
@@ -24,6 +26,35 @@ const replayHeaderMarker = audit.ReplayHeaderName
 // response body we'll capture so a hostile captured payload can't
 // allocate large amounts of memory at replay time.
 const replayMaxBodyBytes = 1 << 20 // 1 MiB
+
+// redactedReplayHeaders are credential-carrying header names whose
+// captured values are guaranteed to be the "[redacted]" sentinel
+// written by audit.SanitizeHeaders. Re-emitting them would put a
+// non-empty value on the wire that httpmw.Identity would treat as a
+// real credential, defeating the portal-identity bypass. The replay
+// path carries identity through context, so dropping them is safe.
+//
+// TODO: paired with the same gap in pkg/httpmw/identity.go — if a
+// deployment customizes APIKeysConfig.HeaderName, the captured
+// redaction sentinel under the custom name will leak back into the
+// replayed request. Fix when the chain gains a self-describing
+// HasCredential surface.
+var redactedReplayHeaders = map[string]struct{}{
+	"authorization": {},
+	"x-api-key":     {},
+	"cookie":        {},
+}
+
+func isRedactedCredentialHeader(name string) bool {
+	_, ok := redactedReplayHeaders[strings.ToLower(name)]
+	return ok
+}
+
+// isRedactedCredentialQuery matches the ?api_key= form the apikey
+// authenticator also accepts; audit.SanitizeQuery redacts it identically.
+func isRedactedCredentialQuery(name string) bool {
+	return strings.EqualFold(name, "api_key")
+}
 
 // auditReplay re-issues a captured request through the local mux.
 // Requires the audit Logger to implement PayloadLogger (so we can
@@ -103,6 +134,9 @@ func (p *PortalAPI) auditReplay(w http.ResponseWriter, r *http.Request) {
 	if len(payload.RequestQuery) > 0 {
 		values := url.Values{}
 		for k, vs := range payload.RequestQuery {
+			if isRedactedCredentialQuery(k) {
+				continue
+			}
 			for _, v := range vs {
 				values.Add(k, v)
 			}
@@ -114,7 +148,17 @@ func (p *PortalAPI) auditReplay(w http.ResponseWriter, r *http.Request) {
 	if len(body) > replayMaxBodyBytes {
 		body = body[:replayMaxBodyBytes]
 	}
-	replayReq, err := http.NewRequestWithContext(r.Context(),
+
+	// The captured request's Authorization / X-API-Key are persisted as
+	// "[redacted]", so replaying them verbatim would 401 the call. Carry
+	// the operator's portal-resolved identity into the replayed request's
+	// context — same trust model as Try-It dispatch.
+	replayCtx := r.Context()
+	if portalID := auth.GetIdentity(replayCtx); portalID != nil {
+		replayCtx = inbound.WithIdentity(replayCtx, portalIdentityToInbound(portalID))
+	}
+
+	replayReq, err := http.NewRequestWithContext(replayCtx,
 		ev.Method, u.String(), bytes.NewReader(body))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("construct replay request: %w", err))
@@ -122,12 +166,19 @@ func (p *PortalAPI) auditReplay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Copy captured headers but refuse to replay anything already
-	// carrying our marker (loop guard).
+	// carrying our marker (loop guard). Skip credential headers — the
+	// audit middleware persists their values as "[redacted]", so
+	// re-emitting them would put a redaction sentinel on the wire that
+	// httpmw.Identity treats as a real credential and then fails to
+	// validate. Identity flows through the dispatch context instead.
 	for k, vs := range payload.RequestHeaders {
 		if strings.EqualFold(k, replayHeaderMarker) {
 			writeError(w, http.StatusBadRequest,
 				errors.New("captured request already carries the replay marker — refusing to replay a replay"))
 			return
+		}
+		if isRedactedCredentialHeader(k) {
+			continue
 		}
 		for _, v := range vs {
 			replayReq.Header.Add(k, v)

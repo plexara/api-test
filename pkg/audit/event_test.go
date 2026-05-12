@@ -1,9 +1,71 @@
 package audit
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 )
+
+func TestPayload_MarshalJSON_UTF8BodiesAsStrings(t *testing.T) {
+	p := Payload{
+		RequestBody:  []byte(`{"hello":"world","n":42}`),
+		ResponseBody: []byte("plain text response"),
+	}
+	out, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got["request_body"] != `{"hello":"world","n":42}` {
+		t.Errorf("request_body = %v, want literal JSON string", got["request_body"])
+	}
+	if got["response_body"] != "plain text response" {
+		t.Errorf("response_body = %v, want plain text", got["response_body"])
+	}
+	if _, present := got["request_body_encoding"]; present {
+		t.Errorf("request_body_encoding should be absent for utf-8 bodies")
+	}
+}
+
+func TestPayload_MarshalJSON_BinaryBodyBase64Flagged(t *testing.T) {
+	p := Payload{
+		ResponseBody: []byte{0xff, 0xfe, 0x00, 0x01},
+	}
+	out, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got["response_body_encoding"] != "base64" {
+		t.Errorf("response_body_encoding = %v, want base64", got["response_body_encoding"])
+	}
+	if got["response_body"] == "" {
+		t.Errorf("response_body empty for binary input")
+	}
+}
+
+func TestPayload_MarshalJSON_EmptyBodiesOmitted(t *testing.T) {
+	p := Payload{RequestContentType: "application/json"}
+	out, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, k := range []string{"request_body", "response_body", "request_body_encoding", "response_body_encoding"} {
+		if _, present := got[k]; present {
+			t.Errorf("%s should be omitted when body is empty", k)
+		}
+	}
+}
 
 func TestSanitizeHeaders_Redacts(t *testing.T) {
 	h := http.Header{}

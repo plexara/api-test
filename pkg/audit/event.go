@@ -9,9 +9,12 @@
 package audit
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ReplayHeaderName is the header attached to replayed requests so the
@@ -59,7 +62,7 @@ type Payload struct {
 	RequestHeaders     map[string][]string `json:"request_headers,omitempty"`
 	RequestQuery       map[string][]string `json:"request_query,omitempty"`
 	RequestContentType string              `json:"request_content_type,omitempty"`
-	RequestBody        []byte              `json:"request_body,omitempty"`
+	RequestBody        []byte              `json:"-"`
 	RequestSizeBytes   int                 `json:"request_size_bytes,omitempty"`
 	RequestTruncated   bool                `json:"request_truncated,omitempty"`
 	RequestRemoteAddr  string              `json:"request_remote_addr,omitempty"`
@@ -67,13 +70,47 @@ type Payload struct {
 	// Response side
 	ResponseHeaders     map[string][]string `json:"response_headers,omitempty"`
 	ResponseContentType string              `json:"response_content_type,omitempty"`
-	ResponseBody        []byte              `json:"response_body,omitempty"`
+	ResponseBody        []byte              `json:"-"`
 	ResponseSizeBytes   int                 `json:"response_size_bytes,omitempty"`
 	ResponseTruncated   bool                `json:"response_truncated,omitempty"`
 
 	// ReplayedFrom links a replayed call back to the original event's ID.
 	// Set by the portal replay endpoint (M3+).
 	ReplayedFrom string `json:"replayed_from,omitempty"`
+}
+
+// MarshalJSON renders Payload so the portal SPA and any human reader see
+// request/response bodies as utf-8 strings, not the base64 dump Go's
+// default []byte encoder produces. When a body isn't valid utf-8 we fall
+// back to base64 and flag it via a sibling `_encoding` field so callers
+// can decode unambiguously.
+func (p Payload) MarshalJSON() ([]byte, error) {
+	type alias Payload
+	out := struct {
+		alias
+		RequestBody          string `json:"request_body,omitempty"`
+		RequestBodyEncoding  string `json:"request_body_encoding,omitempty"`
+		ResponseBody         string `json:"response_body,omitempty"`
+		ResponseBodyEncoding string `json:"response_body_encoding,omitempty"`
+	}{alias: alias(p)}
+
+	if len(p.RequestBody) > 0 {
+		if utf8.Valid(p.RequestBody) {
+			out.RequestBody = string(p.RequestBody)
+		} else {
+			out.RequestBody = base64.StdEncoding.EncodeToString(p.RequestBody)
+			out.RequestBodyEncoding = "base64"
+		}
+	}
+	if len(p.ResponseBody) > 0 {
+		if utf8.Valid(p.ResponseBody) {
+			out.ResponseBody = string(p.ResponseBody)
+		} else {
+			out.ResponseBody = base64.StdEncoding.EncodeToString(p.ResponseBody)
+			out.ResponseBodyEncoding = "base64"
+		}
+	}
+	return json.Marshal(out)
 }
 
 // NewEvent constructs an Event with sensible defaults filled in.
