@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/plexara/api-test/pkg/auth"
+	"github.com/plexara/api-test/pkg/auth/inbound"
 	"github.com/plexara/api-test/pkg/endpoints"
 )
 
@@ -142,7 +144,19 @@ func (p *PortalAPI) tryIt(w http.ResponseWriter, r *http.Request) {
 	if len(body) > tryItMaxBodyBytes {
 		body = body[:tryItMaxBodyBytes]
 	}
-	dispatched, err := http.NewRequestWithContext(r.Context(),
+
+	// Carry the portal-resolved identity into the dispatched request so
+	// httpmw.Identity short-circuits the inbound auth chain. Without this,
+	// a logged-in operator clicking "Send" gets 401 "missing credential":
+	// the dispatched request has no Authorization/X-API-Key on the wire
+	// (and we deliberately strip operator-supplied ones above), so the
+	// chain has nothing to validate.
+	dispatchCtx := r.Context()
+	if portalID := auth.GetIdentity(dispatchCtx); portalID != nil {
+		dispatchCtx = inbound.WithIdentity(dispatchCtx, portalIdentityToInbound(portalID))
+	}
+
+	dispatched, err := http.NewRequestWithContext(dispatchCtx,
 		method, u.String(), bytes.NewReader(body))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("construct request: %w", err))
@@ -170,6 +184,26 @@ func (p *PortalAPI) tryIt(w http.ResponseWriter, r *http.Request) {
 		Body:          rec.body.String(),
 		BodyTruncated: rec.truncated,
 	})
+}
+
+// portalIdentityToInbound translates the portal session identity into
+// an inbound.Identity so httpmw.Identity can read it off the context.
+// Mirrors adaptInboundIdentity in portalauth.go in the opposite direction.
+func portalIdentityToInbound(in *auth.Identity) *inbound.Identity {
+	if in == nil {
+		return nil
+	}
+	authType := in.AuthType
+	if authType == "" {
+		authType = "portal"
+	}
+	return &inbound.Identity{
+		Subject:  in.Subject,
+		Email:    in.Email,
+		AuthType: authType,
+		KeyName:  in.APIKeyID,
+		Claims:   in.Claims,
+	}
 }
 
 // findRoute locates the EndpointMeta whose Group and Name match. Both

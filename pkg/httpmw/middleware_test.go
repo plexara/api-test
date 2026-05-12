@@ -73,6 +73,58 @@ func TestIdentity_401WhenNoCredAndNoAnonymous(t *testing.T) {
 	}
 }
 
+func TestIdentity_PreSetSkipsChain(t *testing.T) {
+	// Try-It dispatch path: the portal handler has already authed the
+	// operator and attached an inbound.Identity to the request context
+	// before re-entering the mux. The chain — which would otherwise 401
+	// because no credential is on the wire — must yield.
+	chain := inbound.NewChain(false, inbound.NewBearer([]config.FileBearerToken{{Name: "x", Token: "t"}}))
+	var saw *inbound.Identity
+	h := Identity(chain, discardLogger())(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		saw = inbound.FromContext(r.Context())
+	}))
+	pre := &inbound.Identity{Subject: "alice", AuthType: "portal", KeyName: "session"}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r = r.WithContext(inbound.WithIdentity(r.Context(), pre))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Errorf("status %d want 200", w.Code)
+	}
+	if saw == nil || saw.Subject != "alice" || saw.AuthType != "portal" {
+		t.Errorf("identity = %+v, want pre-set alice/portal", saw)
+	}
+}
+
+func TestIdentity_WireCredentialOverridesPreSet(t *testing.T) {
+	// Operator types X-API-Key into the Try-It headers field to test
+	// "does this key resolve to the right principal?". The chain must
+	// still run so the resolved Identity reflects the wire credential,
+	// not the portal session that planted the pre-identity.
+	store := inbound.NewFileAPIKeyStore([]config.FileAPIKey{{Name: "ci-runner", Key: "secret"}})
+	apikey := inbound.NewAPIKey(store, "X-API-Key", "api_key")
+	chain := inbound.NewChain(false, apikey)
+
+	var saw *inbound.Identity
+	h := Identity(chain, discardLogger())(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		saw = inbound.FromContext(r.Context())
+	}))
+
+	portalPre := &inbound.Identity{Subject: "alice", AuthType: "portal", KeyName: "session"}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("X-API-Key", "secret")
+	r = r.WithContext(inbound.WithIdentity(r.Context(), portalPre))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status %d want 200", w.Code)
+	}
+	if saw == nil || saw.KeyName != "ci-runner" || saw.AuthType != "apikey" {
+		t.Errorf("identity = %+v, want wire creds (ci-runner/apikey) not portal pre-set", saw)
+	}
+}
+
 func TestIdentity_AnonymousFallthrough(t *testing.T) {
 	chain := inbound.NewChain(true)
 	var saw *inbound.Identity

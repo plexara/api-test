@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/plexara/api-test/pkg/audit"
+	"github.com/plexara/api-test/pkg/auth"
+	"github.com/plexara/api-test/pkg/auth/inbound"
+	"github.com/plexara/api-test/pkg/config"
+	"github.com/plexara/api-test/pkg/httpmw"
 )
 
 // payloadLoggingMemory wraps audit.MemoryLogger and adds a per-ID
@@ -131,6 +136,86 @@ func TestAuditReplay_DispatchesThroughTarget(t *testing.T) {
 	}
 	if echoed["replay"] != id {
 		t.Errorf("X-Plexara-Replay-From header = %q, want %q", echoed["replay"], id)
+	}
+}
+
+// TestAuditReplay_RedactedCredentialsThroughRealIdentityMW exercises
+// the full replay path through httpmw.Identity to guard against the
+// regression where redacted-credential headers ("Authorization:
+// [redacted]" / "X-API-Key: [redacted]" / "?api_key=[redacted]") on a
+// captured request would be re-emitted by the replay handler, then
+// trip httpmw.Identity's wire-credential check, run the inbound chain
+// against the redaction sentinel, and 401 the replay.
+func TestAuditReplay_RedactedCredentialsThroughRealIdentityMW(t *testing.T) {
+	log := newPayloadLoggingMemory()
+	p := NewPortalAPI(nil, nil, log, nil)
+
+	// v1 mux wrapped with the REAL identity middleware. The chain has
+	// one bearer authenticator that would reject "[redacted]" — so if
+	// the bypass is broken, this test 401s instead of reaching the
+	// inner handler.
+	innerReached := false
+	v1 := http.NewServeMux()
+	v1.HandleFunc("POST /v1/echo", func(w http.ResponseWriter, r *http.Request) {
+		innerReached = true
+		id := inbound.FromContext(r.Context())
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"auth_type": id.AuthType,
+			"subject":   id.Subject,
+		})
+	})
+	chain := inbound.NewChain(false,
+		inbound.NewBearer([]config.FileBearerToken{{Name: "real", Token: "real-token"}}))
+	target := httpmw.Identity(chain, slog.New(slog.NewTextHandler(io.Discard, nil)))(v1)
+	p.WithReplayTarget(target)
+
+	id := uuid.NewString()
+	log.seedEventWithPayload(t,
+		audit.Event{
+			ID: id, Timestamp: time.Now().UTC(),
+			Method: http.MethodPost, Path: "/v1/echo", Status: 200, Success: true,
+		},
+		&audit.Payload{
+			RequestHeaders: map[string][]string{
+				"Authorization": {"[redacted]"},
+				"X-Api-Key":     {"[redacted]"},
+				"X-Custom":      {"keep-me"},
+			},
+			RequestQuery:       map[string][]string{"api_key": {"[redacted]"}},
+			RequestBody:        []byte(`{"hi":1}`),
+			RequestContentType: "application/json",
+		},
+	)
+
+	mux := http.NewServeMux()
+	p.Mount(mux, passthroughMW)
+
+	// Carry an auth.Identity in context so the replay handler's
+	// portal-identity bridge fires (production sets this via
+	// PortalAuth.Middleware; we mimic the post-auth state).
+	req := httptest.NewRequest(http.MethodPost,
+		"/api/v1/portal/audit/replay/"+id, nil).WithContext(
+		auth.WithIdentity(context.Background(),
+			&auth.Identity{Subject: "alice", AuthType: "session", APIKeyID: "portal"}))
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("portal replay returned %d (body=%s)", w.Code, w.Body.String())
+	}
+	var env struct {
+		Status int `json:"status"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+		t.Fatalf("decode portal envelope: %v", err)
+	}
+	if env.Status != http.StatusOK {
+		t.Fatalf("dispatched status = %d, want 200 — redacted creds re-emitted into v1 mux probably ate the bypass", env.Status)
+	}
+	if !innerReached {
+		t.Fatal("v1 handler never reached — replay 401'd somewhere upstream")
 	}
 }
 
