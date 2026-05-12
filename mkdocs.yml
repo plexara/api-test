@@ -86,6 +86,7 @@ nav:
       - Portal: operations/portal.md
       - Deployment: operations/deployment.md
       - Testing a Gateway: operations/gateway-testing.md
+      - Troubleshooting: operations/troubleshooting.md
   - Reference:
       - HTTP API: reference/http-api.md
       - Architecture: reference/architecture.md

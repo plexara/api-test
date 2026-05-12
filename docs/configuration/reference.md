@@ -32,9 +32,24 @@ This page is the human-friendly tour.
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `allow_anonymous` | `false` | Falls back to anonymous identity when no inbound credential matches. |
-| `require_for_api` | `false` | **Reserved** for per-surface gating; the inbound chain is currently gated by `allow_anonymous` alone. The shipped `live.yaml` opts in to `true`. |
-| `require_for_portal` | `false` | **Reserved**, same shape. The shipped `live.yaml` opts in to `true`. |
+| `allow_anonymous` | `false` | Falls back to anonymous identity when no inbound credential matches. The single switch that today gates **all** unauthenticated access — see note below. |
+| `require_for_api` | `false` | **Loaded but not yet wired.** Intended for per-surface gating once the API and portal can require auth independently. The shipped `live.yaml` opts in to `true` so existing configs keep working when the gate lands. |
+| `require_for_portal` | `false` | **Loaded but not yet wired**, same shape as above. |
+
+!!! note "What actually gates each surface today"
+    - **`/v1/*`** — the [inbound auth chain](auth.md). When
+      `allow_anonymous: false`, every endpoint requires a credential
+      (API key, bearer, or OIDC); a missing credential returns 401.
+      When `allow_anonymous: true`, missing credentials get an
+      anonymous identity, but a *bad* credential still 401s.
+    - **`/portal/`** — `portal.enabled` mounts it; the SPA itself is
+      reachable without a session, but the portal API
+      (`/api/v1/portal/*`) requires a session cookie or an API key.
+      Sign in via OIDC (`oidc.enabled`) or paste an API key from the
+      file/DB store on the portal sign-in screen.
+    - **Health and well-known** (`/healthz`, `/readyz`,
+      `/.well-known/*`) — never gated; live outside both the auth
+      chain and the audit middleware.
 
 ## `api_keys`
 

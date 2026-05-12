@@ -81,8 +81,8 @@ use mcp-test to validate MCP-gateway behavior.
 
 - [Installation](installation.md) — download the binary or pull the
   container image.
-- [Quickstart](quickstart.md) — `make dev` runs the binary in
-  anonymous mode today; the full Postgres + Keycloak + portal stack
-  lands with.
+- [Quickstart](quickstart.md) — `make dev` brings up the full
+  Postgres + Keycloak + portal stack; `make dev-anon` skips both for
+  fastest iteration.
 - [Register with Plexara](register-with-plexara.md) — wire api-test in
   as a connection.

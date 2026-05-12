@@ -24,6 +24,12 @@ chain returns 401 immediately. This prevents accidental cross-mode
 matches (a typo'd JWT shouldn't accidentally pass the static-bearer
 list).
 
+To verify the chain end-to-end, hit
+[`GET /v1/whoami`](../endpoints/identity.md#whoami) — it echoes the
+resolved `auth_type` and `subject`, so you can confirm the credential
+the gateway is actually sending. The auth pipeline diagram and the
+data-flow notes live in [Architecture › Auth chain](../reference/architecture.md#auth-chain).
+
 ## File API keys
 
 Simplest, no DB required.
@@ -152,6 +158,15 @@ fall back to anonymous. So a bad credential still returns 401 — only
 safe to run with anonymous + a few static keys: clients that send a
 valid key get their identity, clients that send nothing get anonymous,
 clients that send a bad key get 401.
+
+!!! warning "Don't expect bad-credential demotion"
+    `allow_anonymous: true` is **not** "let anything in." A typo'd API
+    key, an expired bearer token, or a JWT signed by the wrong key all
+    still return 401. The anonymous fallback only fires when there is
+    no credential header at all. If you want to allow truly
+    unauthenticated callers from a script while still allowing keyed
+    callers, make sure the script sends no `X-API-Key` or
+    `Authorization` header — not a placeholder.
 
 ## Portal browser login
 

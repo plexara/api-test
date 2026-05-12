@@ -39,9 +39,9 @@ The current milestone status:
 | --- | --- | --- |
 | M1 | HTTP fixture skeleton; identity / data / failure / echo groups | Released |
 | M2 | DB + audit + non-OAuth inbound auth (file API key, bearer, DB key) | Released |
-| M3 | Portal + React SPA + Keycloak + OIDC JWT validator + browser OIDC PKCE | In progress |
-| M4 | In-tree OpenAPI generator + remaining groups (pagination, methods, security, export, streaming) | Planned |
-| M5 | Docs + CI + goreleaser + k8s examples + plexara-connection.yaml | Planned |
+| M3 | Portal + React SPA + Keycloak + OIDC JWT validator + browser OIDC PKCE | Released |
+| M4 | In-tree OpenAPI generator + remaining groups (pagination, methods, security, export, streaming) | Released |
+| M5 | Docs site + CI + goreleaser + Kubernetes examples + plexara-connection.yaml | In progress |
 
 ## Where to find releases
 
@@ -74,3 +74,28 @@ For a `vX` → `v(X+1)` major upgrade:
 2. Test against staging first.
 3. Plan a maintenance window if the audit schema migration needs to
    rebuild indexes.
+
+## Breaking changes
+
+Each major and minor release records its breaking changes in the
+GitHub release notes — that's the canonical registry. For the pre-1.0
+era, individual milestone PRs (M1–M5) are the source of truth; the
+[git log on `main`](https://github.com/plexara/api-test/commits/main)
+records every config-key rename and schema migration. Migrations are
+forward-only, so a fresh deploy off `main` always boots; the friction
+is in-place upgrades against an existing audit history.
+
+Specifically watch for:
+
+- **Config-key renames** — `pkg/config` rejects unknown keys silently
+  (YAML deserialization is lenient). After an upgrade, grep your
+  config against [`configs/api-test.example.yaml`](https://github.com/plexara/api-test/blob/main/configs/api-test.example.yaml)
+  to confirm every key you set still exists.
+- **Audit schema** — backed by [golang-migrate](https://github.com/golang-migrate/migrate).
+  Migrations are forward-only and run automatically on boot; rolling
+  back to a prior binary is **not** safe without first restoring the
+  schema manually.
+- **Endpoint paths** — moving an endpoint between groups would
+  invalidate any audit-row analytics that filter on
+  `endpoint_group`. Endpoint paths are stable post-1.0; pre-1.0 path
+  changes are called out in the relevant PR.
