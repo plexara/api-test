@@ -11,24 +11,21 @@ cd api-test
 make dev
 ```
 
-Today, `make dev` is aliased to `make dev-anon` and runs the binary
-against `configs/api-test.dev.yaml` (anonymous, no Postgres, no
-Keycloak). That's the happy path; everything below the
-`/healthz` row in the table works.
+`make dev` spins up the full local stack: starts Postgres + Keycloak
+via `docker-compose.dev.yml`, waits for both to be ready, builds the
+SPA into `internal/ui/dist/` if missing, and runs the binary against
+`configs/api-test.live.yaml`. On the first run it writes `.env.dev`
+with random cookie / API-key / bearer secrets (gitignored, reused on
+subsequent runs).
+
+For the fastest iteration loop without standing up Postgres or
+Keycloak, use `make dev-anon` — anonymous mode, no audit, no portal:
 
 ```text
-make dev   →   go run ./cmd/api-test --config configs/api-test.dev.yaml
+make dev-anon   →   go run ./cmd/api-test --config configs/api-test.dev.yaml
 ```
 
-The full Postgres + Keycloak + portal stack lands with. Once shipped,
-`make dev` will spin up the compose stack
-(`docker-compose.dev.yml`), poll containers, build the SPA into
-`internal/ui/dist`, and run the binary against
-`configs/api-test.live.yaml`. The
-[milestone status](../reference/releases.md) tracks where each piece
-stands.
-
-When it's up (today, anonymous mode):
+When the stack is up:
 
 <div class="def-cards" markdown>
 
@@ -80,10 +77,10 @@ EOF
 go run ./cmd/api-test --config /tmp/api-test-auth.yaml
 ```
 
-`make dev-secrets` (already in the Makefile) writes a gitignored
-`.env.dev` with random `APITEST_DEV_KEY` / `APITEST_DEV_BEARER` /
-`APITEST_COOKIE_SECRET` values; M3's full `make dev` will source it
-automatically.
+`make dev-secrets` (idempotent — only writes if missing) creates a
+gitignored `.env.dev` with random `APITEST_DEV_KEY` /
+`APITEST_DEV_BEARER` / `APITEST_COOKIE_SECRET` values; `make dev`
+sources it automatically.
 
 ## Verify it works
 
@@ -123,8 +120,15 @@ query string), or `-H "Authorization: Bearer dev-bearer-1"`.
 
 ## Stop the stack
 
-In the foreground binary's terminal: `Ctrl-C`. Once M3 lands, `make
-dev-down` will also tear down the compose stack.
+In the foreground binary's terminal: `Ctrl-C`. To tear down the
+Postgres + Keycloak containers as well:
+
+```bash
+make dev-down   # stops containers, keeps volumes (Postgres data persists)
+```
+
+Add `-v` to the underlying compose command if you want to wipe the
+audit history along with the containers.
 
 ## Next
 

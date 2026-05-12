@@ -33,11 +33,11 @@ call, the body it got back is bit-for-bit predictable.
 | [Data](data.md) | Deterministic bodies for caching / dedup / size handling. |
 | [Failure](failure.md) | Controlled error codes, latency, seeded flake. |
 | [Echo](echo.md) | Generic catch-all that returns the request verbatim. |
-| Streaming | Chunked, SSE, NDJSON responses. |
-| Pagination | One endpoint per cursor style the gateway recognizes. |
-| Methods | Method matrix on `/v1/method/echo`. |
-| Security | Probe targets the gateway should refuse to forward. |
-| Export | Large/long-running targets exercising `api_export`. |
+| [Streaming](streaming.md) | Chunked, SSE, NDJSON responses. |
+| [Pagination](pagination.md) | One endpoint per cursor style the gateway recognizes. |
+| [Methods](methods.md) | Method matrix on `/v1/method/echo`. |
+| [Security](security.md) | Probe targets the gateway should refuse to forward. |
+| [Export](export.md) | Large/long-running targets exercising `api_export`. |
 
 ## Toggling groups
 

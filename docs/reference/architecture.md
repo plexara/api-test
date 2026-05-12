@@ -119,6 +119,11 @@ matches.
 
 ## Audit pipeline
 
+For the schema, retention model, redaction rules, and query patterns,
+see [Audit log](../operations/audit.md). This section is just the
+data-flow.
+
+
 ```mermaid
 flowchart LR
     Handler["Request handler"] -->|Event{}| Async["AsyncLogger<br/>(buffered channel)"]

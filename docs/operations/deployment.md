@@ -109,19 +109,79 @@ limits at 1 vCPU / 512 MiB to absorb burst.
 
 ## Logging
 
-Structured JSON via slog, written to stderr. Override the level via
-`LOG_LEVEL=debug|info|warn|error`. Every line carries:
+Structured JSON via [slog](https://pkg.go.dev/log/slog), written to
+stderr. Override the level via
+`LOG_LEVEL=debug|info|warn|error`. Two line shapes you'll see most:
 
-- `time` (RFC 3339 nano).
-- `level`, `msg`.
-- `method`, `path`, `status`, `bytes`, `duration_ms` for request lines.
-- `request_id` for traceability (generated or preserved from `X-Request-Id`).
-- `auth_type`, `subject` when the identity middleware ran.
+**Access log** (one per inbound request, emitted by `AccessLog`
+middleware):
+
+```json
+{
+  "time": "2026-05-11T22:18:03.421Z",
+  "level": "INFO",
+  "msg": "request",
+  "method": "GET",
+  "path": "/v1/whoami",
+  "status": 200,
+  "bytes": 142,
+  "duration_ms": 3,
+  "request_id": "01HXYZ7Q8N5F0VTA9KM3B2P0WJ",
+  "auth_type": "apikey",
+  "subject": "demo-key"
+}
+```
+
+Field reference:
+
+| Field | When present | Source |
+| --- | --- | --- |
+| `time`, `level`, `msg` | Always | `slog` core. |
+| `method`, `path`, `status`, `bytes`, `duration_ms` | Always | `pkg/httpmw.AccessLog`. |
+| `request_id` | Always | Preserved from `X-Request-Id` if the caller set one, otherwise a fresh UUID; echoed back on the response. |
+| `auth_type`, `subject` | Only on routes that ran the per-route auth chain (`/v1/*` and the portal API) | Resolved identity holder seeded by `RequestID` and written by `Identity`. Health probes, well-known, and the SPA path are intentionally skipped. |
+
+**Audit-pipeline lines** are emitted by the `AsyncLogger` worker, not
+the request path:
+
+- `audit write failed` (WARN) — a DB write returned an error. Includes
+  `method`, `path`, `err`.
+- `audit buffer full; dropping events` (WARN) — emitted at the 1st,
+  1001st, 2001st, … drop with the cumulative `dropped_total`. If you
+  see this regularly, raise the buffer size or scale Postgres.
+
+### Correlating one request across systems
+
+`request_id` is the join key:
+
+1. Caller sends `X-Request-Id: <id>` (or doesn't — api-test will mint
+   one and put it on the response).
+2. api-test echoes `X-Request-Id` on the response.
+3. The access-log line carries the same `request_id`.
+4. The `audit_events` row stores it in column `request_id`.
+
+In Plexara's own audit log, look up the same `request_id` to see what
+the gateway forwarded vs. what the upstream received.
+
+```sql
+-- Look up one request end-to-end
+SELECT ts, method, path, status, duration_ms, auth_type, subject
+FROM audit_events
+WHERE request_id = '01HXYZ7Q8N5F0VTA9KM3B2P0WJ';
+```
 
 ## Metrics
 
-Prometheus metrics endpoint lands in. Until then, derive metrics
-from the structured access log or query the audit table:
+api-test does not expose a `/metrics` endpoint today, and there are no
+current plans to add one — the audit table is the canonical
+observability surface, and the structured access log covers what
+Prometheus would. Derive request-rate / latency / error-rate metrics
+from either source:
+
+- **Access log** — pipe the JSON lines into your log pipeline and
+  aggregate on `path`, `status`, `duration_ms`, and `auth_type`.
+- **Audit table** — richer (full headers, payload sizes, identity),
+  cheap to query for ad-hoc analysis:
 
 ```sql
 -- p50/p95 latency, last hour, by endpoint group

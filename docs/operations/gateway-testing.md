@@ -152,25 +152,30 @@ the redaction policy isn't covering that key.
 **Question**: did the gateway recognize the upstream's pagination
 cursor?
 
-api-test exposes one endpoint per cursor style:
+api-test exposes one endpoint per cursor style the gateway's pagination
+detector recognizes:
 
-- `/v1/page/link` — RFC 5988 `Link: <…>; rel="next"`.
-- `/v1/page/odata` — body field `@odata.nextLink`.
-- `/v1/page/cursor` — body field `next_cursor`.
-- `/v1/page/cursor-camel` — `nextCursor`.
-- `/v1/page/google` — `next_page_token`.
-- `/v1/page/google-camel` — `nextPageToken`.
-- `/v1/page/generic` — `next`.
-- `/v1/page/none` — single page, no cursor (negative test).
-- `/v1/page/mixed` — both Link header AND body cursor (precedence
-  test; Link should win).
+- `/v1/pagination/link` — RFC 5988 `Link: <…>; rel="next"` (also
+  `first`, `prev`, `last`). Paged with `?page=&per_page=`.
+- `/v1/pagination/odata` — OData v4 body field `@odata.nextLink` plus
+  `@odata.count`. Paged with `?$top=&$skip=`.
+- `/v1/pagination/cursor` — opaque base64 cursor in body field
+  `next_cursor`. Paged with `?cursor=&limit=`.
+
+All three slice the same deterministic synthetic dataset
+(`hex(sha256(id)[:8])`), so the items returned for page 2 of the Link
+endpoint should bit-match the items returned by walking the OData or
+cursor endpoint to the same offset. See the
+[Pagination endpoint reference](../endpoints/pagination.md) for the
+full parameter table.
 
 **Assertion**: gateway response envelope's `pagination` field:
 
-- For each style, the cursor value should match what api-test put on
-  the wire.
-- For `/v1/page/none`, `pagination` should be absent or null.
-- For `/v1/page/mixed`, the gateway should prefer the Link header.
+- For each style, the cursor / next-page value should match what
+  api-test put on the wire (no host rewrite, no re-encoding).
+- Item bodies for the same `id` are byte-equal across all three styles.
+- Requesting past the last page returns 400 from api-test; the gateway
+  should surface that, not collapse it into a tool-level error.
 
 ## Snapshot fixtures
 

@@ -15,7 +15,10 @@ The pipeline is async: the request handler enqueues into a buffered
 channel; a background goroutine drains into Postgres. A stalled DB
 can never inflate request latency. On a full buffer the event is
 *dropped* and counted (logged every 1000th drop). For lossless audit,
-size the buffer for your peak rate.
+size the buffer for your peak rate. See
+[Architecture › Audit pipeline](../reference/architecture.md#audit-pipeline)
+for the data-flow diagram, and [Deployment › Logging](deployment.md#logging)
+for how to correlate audit rows with the access log via `request_id`.
 
 ## Schema
 
