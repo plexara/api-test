@@ -99,7 +99,28 @@ func Build(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Appli
 	}
 	apikeyAuth := inbound.NewAPIKey(keyStore, cfg.APIKeys.HeaderName, cfg.APIKeys.QueryParamName)
 	bearerAuth := inbound.NewBearer(cfg.Bearer.Tokens)
-	app.chain = inbound.NewChain(cfg.Auth.AllowAnonymous, apikeyAuth, bearerAuth)
+
+	// The OIDC validator is shared with the portal's BrowserAuth so we hit
+	// discovery + JWKS once. When portal is disabled but oidc.enabled is
+	// true the validator still belongs in the chain so /v1/* accepts JWTs.
+	var oidcValidator *auth.OIDCAuthenticator
+	if cfg.OIDC.Enabled {
+		v, err := auth.NewOIDC(ctx, cfg.OIDC)
+		if err != nil {
+			return nil, fmt.Errorf("oidc validator: %w", err)
+		}
+		oidcValidator = v
+	}
+
+	auths := []inbound.Authenticator{apikeyAuth}
+	if oidcValidator != nil {
+		// Insert OIDC before the static bearer so JWTs hit the IdP-aware
+		// validator first. A non-JWT bearer returns ErrNoCredential and
+		// falls through to the static list.
+		auths = append(auths, inbound.NewOIDCBearer(oidcValidator))
+	}
+	auths = append(auths, bearerAuth)
+	app.chain = inbound.NewChain(cfg.Auth.AllowAnonymous, auths...)
 
 	// --- Endpoint registry ---
 	app.registry = buildRegistry(cfg)
@@ -119,7 +140,7 @@ func Build(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Appli
 	app.readiness = httpsrv.NewReadiness()
 
 	// --- Portal (M3+) ---
-	portalDeps, err := buildPortal(ctx, cfg, app.chain, app.auditLog, app.registry, app.dbKeys, logger)
+	portalDeps, err := buildPortal(ctx, cfg, app.chain, app.auditLog, app.registry, app.dbKeys, oidcValidator, logger)
 	if err != nil {
 		return nil, fmt.Errorf("portal: %w", err)
 	}
@@ -160,9 +181,10 @@ func buildOpenAPI(cfg *config.Config, registry *endpoints.Registry) oapi.Documen
 // true. Returns (nil, nil) when the portal is disabled — the mux falls back
 // to the bare /v1/* + /healthz surface.
 //
-// The OIDC validator + BrowserAuth construction will hit the configured
-// issuer's discovery URL at startup; misconfiguration (wrong issuer, IdP
-// down) fails Build() rather than the first portal request.
+// oidcValidator is the same instance the inbound chain uses; the portal
+// reuses it rather than running discovery + JWKS fetch a second time. When
+// cfg.OIDC.Enabled is false the validator is nil and BrowserAuth is not
+// mounted.
 func buildPortal(
 	ctx context.Context,
 	cfg *config.Config,
@@ -170,6 +192,7 @@ func buildPortal(
 	auditLog audit.Logger,
 	registry *endpoints.Registry,
 	keys *apikeys.Store,
+	oidcValidator *auth.OIDCAuthenticator,
 	logger *slog.Logger,
 ) (*httpsrv.PortalDeps, error) {
 	if !cfg.Portal.Enabled {
@@ -189,12 +212,8 @@ func buildPortal(
 		PortalAuth: httpsrv.NewPortalAuth(sessions, chain),
 		PortalAPI:  httpsrv.NewPortalAPI(cfg, registry, auditLog, keys),
 	}
-	if cfg.OIDC.Enabled {
-		validator, err := auth.NewOIDC(ctx, cfg.OIDC)
-		if err != nil {
-			return nil, fmt.Errorf("oidc validator: %w", err)
-		}
-		ba, err := httpsrv.NewBrowserAuth(ctx, cfg, validator, sessions, logger)
+	if oidcValidator != nil {
+		ba, err := httpsrv.NewBrowserAuth(ctx, cfg, oidcValidator, sessions, logger)
 		if err != nil {
 			return nil, fmt.Errorf("browser auth: %w", err)
 		}
